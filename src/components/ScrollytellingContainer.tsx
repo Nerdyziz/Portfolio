@@ -1,0 +1,344 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { World3DCanvas } from './3d/World3DCanvas';
+import { SectorHero } from './SectorHero';
+import { SectorDatacenter } from './SectorDatacenter';
+import { SectorNeuralCore } from './SectorNeuralCore';
+import { Project } from '../types';
+
+import { soundEngine } from '../utils/audio';
+
+interface ScrollytellingContainerProps {
+  onInspectProject: (project: Project) => void;
+  onCvClick: () => void;
+}
+
+export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = ({
+  onInspectProject,
+  onCvClick
+}) => {
+  const [scrollProgress, setScrollProgress] = useState(0);
+
+  useEffect(() => {
+    // Reset scroll to top on mount
+    window.scrollTo(0, 0);
+    setScrollProgress(0);
+
+    let unsubscribe: (() => void) | undefined;
+    const connectLenis = () => {
+      const lenis = (window as unknown as { lenis?: any }).lenis;
+      if (lenis && !unsubscribe) {
+        unsubscribe = lenis.on('scroll', (e: { progress: number }) => {
+          setScrollProgress(Math.min(Math.max(e.progress, 0), 1));
+        });
+        return true;
+      }
+      return false;
+    };
+
+    if (!connectLenis()) {
+      const timer = setInterval(() => {
+        if (connectLenis()) clearInterval(timer);
+      }, 50);
+      setTimeout(() => clearInterval(timer), 3000);
+    }
+
+    let ticking = false;
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const scrollY = window.scrollY;
+          const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+          if (maxScroll > 0) {
+            const progress = Math.min(Math.max(scrollY / maxScroll, 0), 1);
+            setScrollProgress(progress);
+          }
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      if (typeof unsubscribe === 'function') unsubscribe();
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  // Play audio chimes at key cinematic events
+  useEffect(() => {
+    // Glass doors parting
+    if (scrollProgress >= 0.742 && scrollProgress <= 0.746) {
+      soundEngine.playClick(1300);
+    }
+    // Laptop screen activation & terminal boot
+    if (scrollProgress >= 0.800 && scrollProgress <= 0.804) {
+      soundEngine.playBoot();
+    }
+    // Runway online chime
+    if (scrollProgress >= 0.875 && scrollProgress <= 0.879) {
+      soundEngine.playClick(1400);
+    }
+    // Airplane liftoff thrust
+    if (scrollProgress >= 0.895 && scrollProgress <= 0.899) {
+      soundEngine.playSuccess();
+    }
+  }, [scrollProgress]);
+
+  const [portalOpacity, setPortalOpacity] = useState(0);
+  const isResettingRef = useRef(false);
+
+  // Seamless portal transition: When camera dives deep into the laptop screen sky (>= 0.990),
+  // we envelope in luminous clouds, instant-wrap to Section 1 (top: 0), and softly part the clouds!
+  // ZERO reverse camera flight, ZERO low view, 100% forward portal transit into Space/Stratosphere.
+  useEffect(() => {
+    if (scrollProgress >= 0.990 && !isResettingRef.current) {
+      isResettingRef.current = true;
+      setPortalOpacity(1);
+
+      // Instantly reset scroll to top (Section 1)
+      const lenis = (window as unknown as { lenis?: any }).lenis;
+      if (lenis) {
+        lenis.scrollTo(0, { immediate: true });
+      }
+      window.scrollTo(0, 0);
+
+      // Fade out the portal veil smoothly after arriving in Section 1
+      window.setTimeout(() => {
+        setPortalOpacity(0);
+        window.setTimeout(() => {
+          isResettingRef.current = false;
+        }, 850);
+      }, 150);
+
+      // Do NOT clear timer in cleanup so the fade-out always executes!
+    } else if (!isResettingRef.current) {
+      if (scrollProgress >= 0.965) {
+        setPortalOpacity(Math.min(1, (scrollProgress - 0.965) / 0.025));
+      } else {
+        setPortalOpacity(0);
+      }
+    }
+  }, [scrollProgress]);
+
+  // Helper function to calculate smooth opacity fade-in and fade-out
+  const getOpacity = (startIn: number, peakIn: number, peakOut: number, endOut: number): number => {
+    if (scrollProgress < startIn) return 0;
+    if (scrollProgress >= startIn && scrollProgress < peakIn) {
+      return (scrollProgress - startIn) / (peakIn - startIn);
+    }
+    if (scrollProgress >= peakIn && scrollProgress <= peakOut) {
+      return 1;
+    }
+    if (scrollProgress > peakOut && scrollProgress <= endOut) {
+      return 1 - (scrollProgress - peakOut) / (endOut - peakOut);
+    }
+    return 0;
+  };
+
+  // 1. SECTION 1: HERO (Cloud Stratosphere): 0% to 13%
+  const heroOpacity = getOpacity(0.0, 0.0, 0.090, 0.130);
+
+  // Subtle Cloud Veil during Stratosphere to Airlock Descent (9.0% to 17.0%)
+  const cloudDiveOpacity = (() => {
+    if (scrollProgress < 0.090 || scrollProgress > 0.170) return 0;
+    const mid = 0.130;
+    const dist = Math.abs(scrollProgress - mid) / 0.040;
+    return Math.max(0, (1 - dist * dist) * 0.35);
+  })();
+
+  // 2. SECTION 2: THE DATACENTER CATHEDRAL (In front of Sealed Gate ONLY): 16% to 25%
+  const datacenterSectionOpacity = getOpacity(0.160, 0.180, 0.235, 0.250);
+
+  // 3. SECTION 4: NEURAL CORE TERMINAL & MILESTONES (Inside Rack 4): 62.5% to 70%
+  const neuralCoreOpacity = getOpacity(0.625, 0.635, 0.690, 0.700);
+
+  // 4. SECTION 6: THE ARCHITECT TERMINAL LOGBOOK & TRANSMISSION: 81.0% to 88.0%
+  const terminalSectionOpacity = getOpacity(0.810, 0.820, 0.865, 0.880);
+
+  // 6. SECTION 7: FLIGHT RUNWAY TAKEOFF HUD: 88.0% to 96.0%
+  const flightSectionOpacity = getOpacity(0.880, 0.895, 0.950, 0.965);
+
+  const scrollToProgress = (targetProgress: number) => {
+    const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+    const targetY = maxScroll * targetProgress;
+    const lenis = (window as unknown as { lenis?: any }).lenis;
+    if (lenis) {
+      lenis.scrollTo(targetY, { duration: 1.2 });
+    } else {
+      window.scrollTo({
+        top: targetY,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  return (
+    <div className="relative w-full">
+      {/* 1. Full-Screen Pinned 3D WebGL Canvas Layer (Airlock Gate + Silicon Cards on Doors) */}
+      <World3DCanvas
+        scrollProgress={scrollProgress}
+        onInspectProject={onInspectProject}
+      />
+
+      {/* 2. Full-Screen Sticky UI Overlays Layer */}
+      <div className="fixed inset-0 pointer-events-none z-10 flex flex-col justify-center overflow-hidden">
+        {/* Section 1: Hero (Clouds) */}
+        <div
+          className="absolute inset-0 flex items-start justify-center overflow-y-auto transition-opacity duration-300"
+          style={{
+            opacity: heroOpacity,
+            pointerEvents: heroOpacity > 0.05 ? 'auto' : 'none',
+            visibility: heroOpacity > 0.001 ? 'visible' : 'hidden'
+          }}
+        >
+          <SectorHero
+            opacity={heroOpacity}
+            scrollProgress={scrollProgress}
+            onDescendClick={() => scrollToProgress(0.21)}
+            onCvClick={onCvClick}
+          />
+        </div>
+
+        {/* Section 2: The Datacenter Cathedral (Fades in ONLY AFTER Gate is landed & visible!) */}
+        <div
+          className="absolute inset-0 flex items-center justify-center transition-opacity duration-300"
+          style={{
+            opacity: datacenterSectionOpacity,
+            pointerEvents: datacenterSectionOpacity > 0.05 ? 'auto' : 'none',
+            visibility: datacenterSectionOpacity > 0.001 ? 'visible' : 'hidden'
+          }}
+        >
+          <SectorDatacenter
+            opacity={datacenterSectionOpacity}
+            onInspectProject={onInspectProject}
+            onEnterCorridor={() => scrollToProgress(0.30)}
+          />
+        </div>
+
+        {/* Section 4: Neural Core Terminal & Milestones (Inside the Red Chip) */}
+        <div
+          className="absolute inset-0 flex items-center justify-center transition-opacity duration-300"
+          style={{
+            opacity: neuralCoreOpacity,
+            pointerEvents: neuralCoreOpacity > 0.05 ? 'auto' : 'none',
+            visibility: neuralCoreOpacity > 0.001 ? 'visible' : 'hidden'
+          }}
+        >
+          <SectorNeuralCore opacity={neuralCoreOpacity} />
+        </div>
+
+        {/* Section 6: Architect Terminal Logbook HUD Badge */}
+        {terminalSectionOpacity > 0.05 && (
+          <div
+            className="absolute top-18 sm:top-24 left-1/2 -translate-x-1/2 pointer-events-none transition-opacity duration-300 max-w-[92vw]"
+            style={{ opacity: terminalSectionOpacity }}
+          >
+            <div className="flex items-center gap-2 sm:gap-3 px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-full bg-white/95 backdrop-blur-md border border-sun-gold/40 shadow-xl max-w-full truncate">
+              <span className="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              <span className="font-mono text-[10px] sm:text-xs tracking-wider sm:tracking-widest text-obsidian font-bold uppercase truncate">
+                TERMINAL // ARCHITECT LOGBOOK [TRANSMISSION ACTIVE]
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Section 7: Flight Takeoff Telemetry Badge */}
+        {flightSectionOpacity > 0.05 && (
+          <div
+            className="absolute top-18 sm:top-24 left-1/2 -translate-x-1/2 pointer-events-none transition-opacity duration-300 max-w-[92vw]"
+            style={{ opacity: flightSectionOpacity }}
+          >
+            <div className="flex items-center gap-2 sm:gap-3 px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-full bg-white/95 backdrop-blur-md border border-sun-gold/40 shadow-xl max-w-full truncate">
+              <span className="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-full bg-sun-gold animate-ping shrink-0" />
+              <span className="font-mono text-[10px] sm:text-xs tracking-wider sm:tracking-widest text-obsidian font-bold uppercase truncate">
+                AETHER-01 // AIRBORNE TAKEOFF VECTOR ACTIVE
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Subtle Atmospheric Cloud Mist Veil during Stratosphere to Airlock descent */}
+      <div
+        className="fixed inset-0 pointer-events-none z-30 transition-opacity duration-300"
+        style={{
+          opacity: cloudDiveOpacity,
+          visibility: cloudDiveOpacity > 0.005 ? 'visible' : 'hidden',
+          background:
+            'radial-gradient(ellipse at center, rgba(255,255,255,0.7) 0%, rgba(240,249,255,0.4) 60%, rgba(255,255,255,0) 100%)',
+          backdropFilter: cloudDiveOpacity > 0.05 ? `blur(${cloudDiveOpacity * 10}px)` : 'none',
+        }}
+      />
+
+      {/* 5. Seamless Laptop Screen to Stratosphere Portal Veil: Dives into screen and emerges into Section 1 */}
+      <div
+        className="fixed inset-0 pointer-events-none z-40 transition-opacity duration-700 ease-out"
+        style={{
+          opacity: portalOpacity,
+          visibility: portalOpacity > 0.001 ? 'visible' : 'hidden',
+          background:
+            'radial-gradient(circle at center, rgba(255,255,255,0.98) 0%, rgba(224,242,254,0.95) 55%, rgba(186,230,253,0.90) 100%)',
+          backdropFilter: 'blur(16px)',
+        }}
+      />
+
+      {/* 3. 2800vh Extended Transparent Scroll Track: Keeps every stage at constant, relaxed, non-snappy pace */}
+      <div className="w-full h-[2800vh] pointer-events-none relative" />
+
+      {/* 4. Pinned Vertical Stage Telemetry Rail on the right edge */}
+      <div className="fixed right-6 top-1/2 -translate-y-1/2 z-30 hidden md:flex flex-col items-center gap-3.5">
+        {[
+          { label: '01. STRATO', target: 0.04 },
+          { label: '02. AIRLOCK', target: 0.14 },
+          { label: '03. CATHEDRAL', target: 0.21 },
+          { label: '04. SILICON 01', target: 0.34 },
+          { label: '05. SILICON 02', target: 0.44 },
+          { label: '06. SILICON 03', target: 0.54 },
+          { label: '07. RED CORE', target: 0.66 },
+          { label: '08. LOUNGE', target: 0.76 },
+          { label: '09. TAKEOFF', target: 0.89 },
+          { label: '10. LOOP', target: 0.995 }
+        ].map((item, idx) => {
+          const isActive =
+            (idx === 0 && scrollProgress < 0.085) ||
+            (idx === 1 && scrollProgress >= 0.085 && scrollProgress < 0.170) ||
+            (idx === 2 && scrollProgress >= 0.170 && scrollProgress < 0.250) ||
+            (idx === 3 && scrollProgress >= 0.250 && scrollProgress < 0.385) ||
+            (idx === 4 && scrollProgress >= 0.385 && scrollProgress < 0.485) ||
+            (idx === 5 && scrollProgress >= 0.485 && scrollProgress < 0.585) ||
+            (idx === 6 && scrollProgress >= 0.585 && scrollProgress < 0.715) ||
+            (idx === 7 && scrollProgress >= 0.715 && scrollProgress < 0.830) ||
+            (idx === 8 && scrollProgress >= 0.830 && scrollProgress < 0.940) ||
+            (idx === 9 && scrollProgress >= 0.940);
+
+          return (
+            <button
+              key={idx}
+              onClick={() => scrollToProgress(item.target)}
+              title={item.label}
+              className={`group flex items-center gap-2.5 cursor-pointer transition-all ${
+                isActive ? 'scale-110' : 'opacity-50 hover:opacity-100'
+              }`}
+            >
+              <span
+                className={`text-[10px] font-label tracking-widest hidden group-hover:inline-block px-2.5 py-1 rounded-full bg-white/90 backdrop-blur-md shadow-sm border border-border-subtle ${
+                  isActive ? 'text-sun-gold font-bold' : 'text-titanium'
+                }`}
+              >
+                {item.label}
+              </span>
+              <div
+                className={`w-2.5 h-2.5 rounded-full transition-all ${
+                  isActive
+                    ? 'bg-sun-gold shadow-[0_0_10px_rgba(245,166,35,0.7)] ring-2 ring-sun-gold/30'
+                    : 'bg-border-subtle hover:bg-titanium'
+                }`}
+              />
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
