@@ -194,6 +194,15 @@ function RackWithDoor({
 export const DatacenterCorridor: React.FC<DatacenterCorridorProps> = ({
   scrollProgress
 }) => {
+  // Mobile detection for lighting and draw-call optimization
+  const isMobile = useMemo(() => {
+    return typeof window !== 'undefined' && (
+      window.innerWidth < 768 ||
+      'ontouchstart' in window ||
+      navigator.maxTouchPoints > 0
+    );
+  }, []);
+
   // Load 3D models from /public immediately on page load
   const rackGLTF = useGLTF('/data_center_rack.glb');
   const motherBoardGLTF = useGLTF('/MotherBoard.glb');
@@ -388,15 +397,26 @@ export const DatacenterCorridor: React.FC<DatacenterCorridorProps> = ({
       </mesh>
 
       {/* Overhead architectural linear LED skylight panels inside the corridor */}
-      {[-24, -16, -8, 0, 8].map((z, idx) => (
-        <group key={idx} position={[0, 4.18, z]}>
-          <mesh>
-            <boxGeometry args={[1.8, 0.02, 4.5]} />
-            <meshBasicMaterial color="#FFFFFF" />
-          </mesh>
-          <pointLight color="#FFFFFF" intensity={0.9} distance={8} decay={2} />
-        </group>
-      ))}
+      {[-24, -16, -8, 0, 8].map((z, idx) => {
+        // Keep all 5 emissive lightboxes rendered visually; on mobile activate 3 lights to avoid multi-pass shading stalls
+        const hasPointLight = !isMobile || idx % 2 === 0;
+        return (
+          <group key={idx} position={[0, 4.18, z]}>
+            <mesh>
+              <boxGeometry args={[1.8, 0.02, 4.5]} />
+              <meshBasicMaterial color="#FFFFFF" />
+            </mesh>
+            {hasPointLight && (
+              <pointLight
+                color="#FFFFFF"
+                intensity={isMobile ? 1.2 : 0.9}
+                distance={isMobile ? 10 : 8}
+                decay={2}
+              />
+            )}
+          </group>
+        );
+      })}
 
       {/* 5. ARCHITECTURAL END-CAP WALLS AT Z = -29.8 */}
       <group position={[0, 0, -29.8]}>

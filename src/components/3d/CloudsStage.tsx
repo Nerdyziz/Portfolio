@@ -14,16 +14,26 @@ export const CloudsStage: React.FC<CloudsStageProps> = ({ scrollProgress }) => {
   const underFloorSeaRef = useRef<THREE.Group>(null);
   const dustRef = useRef<THREE.Points>(null);
 
-  // Atmospheric golden sunlight particles (180 floating motes in sky)
+  // Detect mobile device to halve alpha overdraw while preserving cloud volume & fluffiness
+  const isMobile = useMemo(() => {
+    return typeof window !== 'undefined' && (
+      window.innerWidth < 768 ||
+      'ontouchstart' in window ||
+      navigator.maxTouchPoints > 0
+    );
+  }, []);
+
+  // Atmospheric golden sunlight particles (Tier-adapted for mobile fillrate)
   const dustCoords = useMemo(() => {
-    const coords = new Float32Array(180 * 3);
-    for (let i = 0; i < 180; i++) {
+    const count = isMobile ? 70 : 180;
+    const coords = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
       coords[i * 3] = (Math.random() - 0.5) * 50;
       coords[i * 3 + 1] = 14 + Math.random() * 32;
       coords[i * 3 + 2] = 14 + (Math.random() - 0.5) * 35;
     }
     return coords;
-  }, []);
+  }, [isMobile]);
 
   useFrame((_, delta) => {
     // Only compute if in the sky / descent zone
@@ -64,8 +74,8 @@ export const CloudsStage: React.FC<CloudsStageProps> = ({ scrollProgress }) => {
       {/* HIGH-ALTITUDE STRATOSPHERE CLOUDS (CONFINED STRICTLY TO EXTERIOR Z >= 14) */}
       {/* ========================================================================= */}
       <Clouds
-        limit={150}
-        range={150}
+        limit={isMobile ? 80 : 150}
+        range={isMobile ? 80 : 150}
         frustumCulled={false}
         material={THREE.MeshLambertMaterial}
         texture="/textures/cloud.png"
@@ -74,7 +84,7 @@ export const CloudsStage: React.FC<CloudsStageProps> = ({ scrollProgress }) => {
         <group ref={centralCumulusRef} position={[0, 28.0, 20.0]}>
           <Cloud
             seed={3}
-            segments={28}
+            segments={isMobile ? 14 : 28}
             bounds={[20, 6, 12]}
             volume={16}
             color="#FFFDF8"
@@ -88,7 +98,7 @@ export const CloudsStage: React.FC<CloudsStageProps> = ({ scrollProgress }) => {
         <group ref={leftBankRef} position={[-5.0, 26.0, 22.0]}>
           <Cloud
             seed={7}
-            segments={24}
+            segments={isMobile ? 12 : 24}
             bounds={[14, 5, 10]}
             volume={14}
             color="#FFFFFF"
@@ -102,7 +112,7 @@ export const CloudsStage: React.FC<CloudsStageProps> = ({ scrollProgress }) => {
         <group ref={rightBankRef} position={[5.0, 26.0, 22.0]}>
           <Cloud
             seed={11}
-            segments={24}
+            segments={isMobile ? 12 : 24}
             bounds={[14, 5, 10]}
             volume={14}
             color="#FFFBF0"
@@ -116,7 +126,7 @@ export const CloudsStage: React.FC<CloudsStageProps> = ({ scrollProgress }) => {
         <group ref={underFloorSeaRef} position={[0, 18.0, 22.0]}>
           <Cloud
             seed={18}
-            segments={30}
+            segments={isMobile ? 16 : 30}
             bounds={[36, 6, 16]}
             volume={20}
             color="#FFFDF6"

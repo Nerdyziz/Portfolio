@@ -1,5 +1,6 @@
 import React, { useRef, Suspense } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { AdaptiveDpr, AdaptiveEvents } from '@react-three/drei';
 import * as THREE from 'three';
 import { CloudsStage } from './CloudsStage';
 import { DatacenterCorridor } from './DatacenterCorridor';
@@ -308,6 +309,15 @@ export const World3DCanvas: React.FC<World3DCanvasProps> = ({
       ? 'linear-gradient(180deg, #6B9FD4 0%, #9BC4E6 35%, #FDE4BD 70%, #F8F6F8 100%)'
       : '#F8F6F8';
 
+  // Hardware-aware dynamic DPR calibration:
+  // Mobile touchscreens (physical DPR 3.0) cap to 1.5 to eliminate 50%+ fillrate heat & battery drain
+  // Desktop renders up to 2.0 for ultra-crisp display
+  const isMobile = typeof window !== 'undefined' && (
+    window.innerWidth < 768 ||
+    'ontouchstart' in window ||
+    navigator.maxTouchPoints > 0
+  );
+
   return (
     <div
       className="fixed inset-0 w-full h-screen pointer-events-none z-0 overflow-hidden transition-colors duration-500"
@@ -315,9 +325,21 @@ export const World3DCanvas: React.FC<World3DCanvasProps> = ({
     >
       <Canvas
         camera={{ position: [0, 38, 42], fov: 48 }}
-        gl={{ antialias: true, alpha: true, localClippingEnabled: true }}
-        dpr={[1, 2]}
+        gl={{
+          antialias: true,
+          alpha: true,
+          powerPreference: 'high-performance',
+          stencil: false,
+          depth: true,
+          localClippingEnabled: true
+        }}
+        dpr={isMobile ? [1, 1.5] : [1, 2]}
       >
+        {/* Industry-Standard Adaptive Scaling: Dynamically throttles DPR if framerate dips */}
+        <AdaptiveDpr pixelated={false} />
+        {/* Temporarily de-prioritizes pointer raycasting during rapid scroll/joystick movement */}
+        <AdaptiveEvents />
+
         {/* Clean Neutral Studio Lighting (NO YELLOW/GOLD TINT OVER CHIP) */}
         <ambientLight intensity={1.2} color="#FFFFFF" />
         <directionalLight

@@ -256,7 +256,12 @@ export const LaptopRunwayExperience: React.FC<LaptopRunwayExperienceProps> = ({ 
     tex.generateMipmaps = true;
     tex.minFilter = THREE.LinearMipmapLinearFilter;
     tex.magFilter = THREE.LinearFilter;
-    tex.anisotropy = 16;
+    const isMobileDevice = typeof window !== 'undefined' && (
+      window.innerWidth < 768 ||
+      'ontouchstart' in window ||
+      navigator.maxTouchPoints > 0
+    );
+    tex.anisotropy = isMobileDevice ? 4 : 16;
     return tex;
   }, []);
 
