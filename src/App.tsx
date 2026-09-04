@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Lenis from 'lenis';
 import 'lenis/dist/lenis.css';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { Navbar } from './components/Navbar';
 import { ScrollytellingContainer } from './components/ScrollytellingContainer';
 import { BlueprintModal } from './components/BlueprintModal';
@@ -10,37 +12,47 @@ import { portfolioConfig } from './data/portfolioData';
 import { Mail, Github, Linkedin, Copy, Check, X } from 'lucide-react';
 import { soundEngine } from './utils/audio';
 
+gsap.registerPlugin(ScrollTrigger);
+
 export function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isContactOpen, setIsContactOpen] = useState(false);
   const [copiedEmail, setCopiedEmail] = useState(false);
+  const contactModalRef = useRef<HTMLDivElement>(null);
 
-  // Initialize Lenis smooth scrolling across the entire project (prevents touchpad crash)
+  // Initialize Lenis smooth scrolling synchronized with GSAP ScrollTrigger
   useEffect(() => {
+    const isTouch =
+      typeof window !== 'undefined' &&
+      ('ontouchstart' in window || navigator.maxTouchPoints > 0 || window.innerWidth < 768);
+
     const lenis = new Lenis({
-      duration: 1.1,
+      duration: isTouch ? 0.75 : 1.1,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       orientation: 'vertical',
       gestureOrientation: 'vertical',
       smoothWheel: true,
       syncTouch: true,
-      touchMultiplier: 1.1,
+      touchMultiplier: isTouch ? 2.5 : 1.1,
       wheelMultiplier: 0.9,
       infinite: false,
     });
 
     (window as unknown as { lenis: Lenis }).lenis = lenis;
 
-    let rafId: number;
-    function raf(time: number) {
-      lenis.raf(time);
-      rafId = requestAnimationFrame(raf);
-    }
-    rafId = requestAnimationFrame(raf);
+    // Connect Lenis scroll updates to GSAP ScrollTrigger
+    lenis.on('scroll', ScrollTrigger.update);
+
+    // Drive Lenis directly via GSAP ticker for rock-solid frame synchronization
+    const updateTicker = (time: number) => {
+      lenis.raf(time * 1000);
+    };
+    gsap.ticker.add(updateTicker);
+    gsap.ticker.lagSmoothing(0);
 
     return () => {
-      cancelAnimationFrame(rafId);
+      gsap.ticker.remove(updateTicker);
       lenis.destroy();
       delete (window as unknown as { lenis?: Lenis }).lenis;
     };
@@ -65,6 +77,16 @@ export function App() {
     }
     window.scrollTo(0, 0);
   }, []);
+
+  useEffect(() => {
+    if (isContactOpen && contactModalRef.current) {
+      gsap.fromTo(
+        contactModalRef.current,
+        { scale: 0.92, opacity: 0, y: 20 },
+        { scale: 1, opacity: 1, y: 0, duration: 0.35, ease: 'power3.out' }
+      );
+    }
+  }, [isContactOpen]);
 
   const copyEmailToClipboard = () => {
     soundEngine.playClick(1000);
@@ -97,8 +119,11 @@ export function App() {
 
       {/* Contact & Transmission Modal (Light Luxury Glass) */}
       {isContactOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="glass-panel w-full max-w-lg rounded-3xl bg-white/95 p-5 sm:p-8 shadow-2xl relative border border-border-gold/40 max-h-[92vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-md">
+          <div
+            ref={contactModalRef}
+            className="glass-panel w-full max-w-lg rounded-3xl bg-white/95 p-5 sm:p-8 shadow-2xl relative border border-border-gold/40 max-h-[92vh] overflow-y-auto"
+          >
             <div className="flex justify-between items-start pb-3 sm:pb-4 mb-4 sm:mb-6 border-b border-border-subtle">
               <div className="pr-2">
                 <span className="font-label text-[10px] sm:text-xs text-sun-gold tracking-widest uppercase font-semibold">

@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { X, ExternalLink, CheckCircle } from 'lucide-react';
+import gsap from 'gsap';
 import { Project } from '../types';
 import { soundEngine } from '../utils/audio';
 
@@ -9,11 +10,26 @@ interface BlueprintModalProps {
 }
 
 export const BlueprintModal: React.FC<BlueprintModalProps> = ({ project, onClose }) => {
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (project && panelRef.current) {
+      gsap.fromTo(
+        panelRef.current,
+        { scale: 0.92, opacity: 0, y: 24 },
+        { scale: 1, opacity: 1, y: 0, duration: 0.38, ease: 'power3.out' }
+      );
+    }
+  }, [project]);
+
   if (!project) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="glass-panel w-full max-w-3xl rounded-3xl bg-white/95 p-4 sm:p-6 md:p-8 shadow-2xl relative max-h-[92vh] overflow-y-auto border border-border-gold/40">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-md">
+      <div
+        ref={panelRef}
+        className="glass-panel w-full max-w-3xl rounded-3xl bg-white/95 p-4 sm:p-6 md:p-8 shadow-2xl relative max-h-[92vh] overflow-y-auto border border-border-gold/40"
+      >
         {/* Top Header */}
         <div className="flex justify-between items-start pb-3 sm:pb-4 mb-4 sm:mb-6 border-b border-border-subtle">
           <div className="pr-2">

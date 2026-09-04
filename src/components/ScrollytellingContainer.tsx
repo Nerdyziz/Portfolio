@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { World3DCanvas } from './3d/World3DCanvas';
 import { SectorHero } from './SectorHero';
 import { SectorDatacenter } from './SectorDatacenter';
@@ -6,6 +8,8 @@ import { SectorNeuralCore } from './SectorNeuralCore';
 import { Project } from '../types';
 
 import { soundEngine } from '../utils/audio';
+
+gsap.registerPlugin(ScrollTrigger);
 
 interface ScrollytellingContainerProps {
   onInspectProject: (project: Project) => void;
@@ -17,18 +21,28 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
   onCvClick
 }) => {
   const [scrollProgress, setScrollProgress] = useState(0);
+  const scrollTrackRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Reset scroll to top on mount
     window.scrollTo(0, 0);
     setScrollProgress(0);
 
+    const st = ScrollTrigger.create({
+      trigger: scrollTrackRef.current,
+      start: 'top top',
+      end: 'bottom bottom',
+      onUpdate: (self) => {
+        setScrollProgress(self.progress);
+      },
+    });
+
     let unsubscribe: (() => void) | undefined;
     const connectLenis = () => {
       const lenis = (window as unknown as { lenis?: any }).lenis;
       if (lenis && !unsubscribe) {
-        unsubscribe = lenis.on('scroll', (e: { progress: number }) => {
-          setScrollProgress(Math.min(Math.max(e.progress, 0), 1));
+        unsubscribe = lenis.on('scroll', () => {
+          ScrollTrigger.update();
         });
         return true;
       }
@@ -42,26 +56,9 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
       setTimeout(() => clearInterval(timer), 3000);
     }
 
-    let ticking = false;
-    const handleScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          const scrollY = window.scrollY;
-          const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-          if (maxScroll > 0) {
-            const progress = Math.min(Math.max(scrollY / maxScroll, 0), 1);
-            setScrollProgress(progress);
-          }
-          ticking = false;
-        });
-        ticking = true;
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => {
       if (typeof unsubscribe === 'function') unsubscribe();
-      window.removeEventListener('scroll', handleScroll);
+      st.kill();
     };
   }, []);
 
@@ -283,8 +280,8 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
         }}
       />
 
-      {/* 3. 2800vh Extended Transparent Scroll Track: Keeps every stage at constant, relaxed, non-snappy pace */}
-      <div className="w-full h-[2800vh] pointer-events-none relative" />
+      {/* 3. Responsive Extended Scroll Track: h-1200vh on mobile, 1800vh on tablet, 2800vh on desktop */}
+      <div ref={scrollTrackRef} className="w-full h-[1200vh] sm:h-[1800vh] md:h-[2800vh] pointer-events-none relative" />
 
       {/* 4. Pinned Vertical Stage Telemetry Rail on the right edge */}
       <div className="fixed right-6 top-1/2 -translate-y-1/2 z-30 hidden md:flex flex-col items-center gap-3.5">

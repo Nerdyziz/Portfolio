@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ArrowUpRight, ArrowDown, Server } from 'lucide-react';
+import gsap from 'gsap';
 import { Project } from '../types';
 import { projectsData } from '../data/portfolioData';
 import { soundEngine } from '../utils/audio';
@@ -16,6 +17,34 @@ export const SectorDatacenter: React.FC<SectorDatacenterProps> = ({
   onEnterCorridor
 }) => {
   const [activeTab, setActiveTab] = useState(0);
+  const containerRef = useRef<HTMLElement>(null);
+  const mobileCardRef = useRef<HTMLDivElement>(null);
+  const desktopGridRef = useRef<HTMLDivElement>(null);
+
+  // GSAP animation when entering the section
+  useEffect(() => {
+    if (opacity > 0.1) {
+      if (desktopGridRef.current) {
+        const cards = desktopGridRef.current.children;
+        gsap.fromTo(
+          cards,
+          { y: 30, opacity: 0, scale: 0.96 },
+          { y: 0, opacity: 1, scale: 1, duration: 0.6, stagger: 0.1, ease: 'power3.out' }
+        );
+      }
+    }
+  }, [opacity > 0.1]);
+
+  // GSAP animation on mobile tab change
+  useEffect(() => {
+    if (mobileCardRef.current) {
+      gsap.fromTo(
+        mobileCardRef.current,
+        { opacity: 0, y: 16, scale: 0.97 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.32, ease: 'power2.out' }
+      );
+    }
+  }, [activeTab]);
 
   if (opacity <= 0.02) return null;
 
@@ -23,7 +52,7 @@ export const SectorDatacenter: React.FC<SectorDatacenterProps> = ({
     <div
       key={project.id}
       onMouseEnter={() => soundEngine.playClick(900)}
-      className="glass-panel glass-panel-hover p-3.5 sm:p-5 rounded-2xl flex flex-col justify-between relative group bg-white/95 shadow-xl border border-white/80 w-full"
+      className="glass-panel glass-panel-hover p-3.5 sm:p-5 rounded-2xl flex flex-col justify-between relative group bg-white/95 shadow-xl border border-white/80 w-full transition-all duration-300"
     >
       <div>
         {/* Card Top Metadata */}
@@ -84,6 +113,7 @@ export const SectorDatacenter: React.FC<SectorDatacenterProps> = ({
 
   return (
     <section
+      ref={containerRef}
       style={{
         opacity,
         transform: `scale(${0.97 + opacity * 0.03}) translateY(${(1 - opacity) * 16}px)`,
@@ -91,7 +121,7 @@ export const SectorDatacenter: React.FC<SectorDatacenterProps> = ({
       }}
       className="w-full h-full max-h-screen flex flex-col justify-start items-center px-3 sm:px-6 md:px-8 max-w-[1240px] mx-auto pointer-events-auto select-none pt-20 sm:pt-24 lg:pt-28 pb-4 sm:pb-6 overflow-y-auto"
     >
-      {/* Header with frosted glass background preventing interference from dark gate bars */}
+      {/* Header with frosted glass background */}
       <div className="mb-2 sm:mb-3 text-center max-w-xl shrink-0 bg-white/95 backdrop-blur-md px-3.5 sm:px-6 py-2 sm:py-3 rounded-2xl border border-white/80 shadow-md">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] sm:text-[11px] font-label text-titanium mb-1 bg-alabaster shadow-xs border border-border-subtle">
           <span className="w-1.5 h-1.5 rounded-full bg-sun-gold animate-pulse"></span>
@@ -129,12 +159,12 @@ export const SectorDatacenter: React.FC<SectorDatacenterProps> = ({
       </div>
 
       {/* Mobile / Tablet View (< lg): Single Active Card */}
-      <div className="block lg:hidden w-full max-w-md mx-auto mb-3 shrink-0">
+      <div ref={mobileCardRef} className="block lg:hidden w-full max-w-md mx-auto mb-3 shrink-0">
         {renderProjectCard(projectsData[activeTab])}
       </div>
 
       {/* Desktop 3-Column Grid (>= lg) */}
-      <div className="hidden lg:grid grid-cols-3 gap-5 w-full mb-4">
+      <div ref={desktopGridRef} className="hidden lg:grid grid-cols-3 gap-5 w-full mb-4">
         {projectsData.map((project) => renderProjectCard(project))}
       </div>
 

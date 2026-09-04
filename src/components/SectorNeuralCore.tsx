@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import confetti from 'canvas-confetti';
+import gsap from 'gsap';
 import { achievementsData, portfolioConfig, projectsData, skillCategories } from '../data/portfolioData';
 import { soundEngine } from '../utils/audio';
 
@@ -21,7 +22,47 @@ export const SectorNeuralCore: React.FC<SectorNeuralCoreProps> = ({ opacity }) =
     { text: 'Type "help" for interactive command directives.', type: 'warning' }
   ]);
 
+  const containerRef = useRef<HTMLElement>(null);
+  const milestonesRef = useRef<HTMLDivElement>(null);
+  const terminalRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // GSAP animation when entering Neural Core
+  useEffect(() => {
+    if (opacity > 0.1) {
+      if (milestonesRef.current) {
+        gsap.fromTo(
+          milestonesRef.current.children,
+          { opacity: 0, x: -20 },
+          { opacity: 1, x: 0, duration: 0.5, stagger: 0.08, ease: 'power2.out' }
+        );
+      }
+      if (terminalRef.current) {
+        gsap.fromTo(
+          terminalRef.current,
+          { opacity: 0, scale: 0.96, y: 15 },
+          { opacity: 1, scale: 1, y: 0, duration: 0.6, ease: 'power3.out', delay: 0.15 }
+        );
+      }
+    }
+  }, [opacity > 0.1]);
+
+  // GSAP animation on mobile tab toggle
+  useEffect(() => {
+    if (activeTab === 'milestones' && milestonesRef.current) {
+      gsap.fromTo(
+        milestonesRef.current,
+        { opacity: 0, y: 12 },
+        { opacity: 1, y: 0, duration: 0.35, ease: 'power2.out' }
+      );
+    } else if (activeTab === 'terminal' && terminalRef.current) {
+      gsap.fromTo(
+        terminalRef.current,
+        { opacity: 0, y: 12 },
+        { opacity: 1, y: 0, duration: 0.35, ease: 'power2.out' }
+      );
+    }
+  }, [activeTab]);
 
   const handleCommand = (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,10 +99,10 @@ export const SectorNeuralCore: React.FC<SectorNeuralCoreProps> = ({ opacity }) =
           particleCount: 80,
           spread: 70,
           origin: { y: 0.85 },
-          colors: ['#F5A623', '#D4AF37', '#835500']
+          colors: ['#F5A623', '#2563EB', '#10B981']
         });
       } catch {
-        // Fallback
+        // Fallback safely
       }
     } else if (lower === 'clear') {
       setHistory([]);
@@ -69,7 +110,7 @@ export const SectorNeuralCore: React.FC<SectorNeuralCoreProps> = ({ opacity }) =
       return;
     } else {
       newHistory.push({
-        text: `aether: command not found: "${cmd}". Type "help" for options.`,
+        text: `Command not recognized: "${cmd}". Type "help" for active operational directives.`,
         type: 'warning'
       });
     }
@@ -86,6 +127,7 @@ export const SectorNeuralCore: React.FC<SectorNeuralCoreProps> = ({ opacity }) =
 
   return (
     <section
+      ref={containerRef}
       style={{
         opacity,
         transform: `scale(${0.97 + opacity * 0.03}) translateY(${(1 - opacity) * 16}px)`,
@@ -137,18 +179,18 @@ export const SectorNeuralCore: React.FC<SectorNeuralCoreProps> = ({ opacity }) =
         </button>
       </div>
 
-      {/* Grid: Milestones Timeline + Interactive Terminal (Balanced heights) */}
+      {/* Grid: Milestones Timeline + Interactive Terminal */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 w-full mb-4">
         {/* Left Column: Milestones (Span 6) */}
         <div className={`lg:col-span-6 flex flex-col justify-between ${activeTab === 'milestones' ? 'block' : 'hidden lg:flex'}`}>
           <h3 className="hidden lg:block font-display text-base sm:text-lg font-bold text-obsidian mb-2.5">
             Research &amp; Milestones
           </h3>
-          <div className="border-l-2 border-sun-gold/40 pl-3 sm:pl-4 space-y-2 sm:space-y-2.5">
+          <div ref={milestonesRef} className="border-l-2 border-sun-gold/40 pl-3 sm:pl-4 space-y-2 sm:space-y-2.5">
             {achievementsData.map((ach) => (
               <div key={ach.id} className="relative group">
                 <div className="absolute -left-[19px] sm:-left-[23px] top-1.5 w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-full bg-white border-2 border-sun-gold shadow-xs"></div>
-                <div className="glass-panel p-2.5 sm:p-3.5 rounded-xl bg-white/90 shadow-sm border border-white/80">
+                <div className="glass-panel p-2.5 sm:p-3.5 rounded-xl bg-white/90 shadow-sm border border-white/80 transition-all hover:scale-[1.01]">
                   <div className="flex justify-between items-center text-[10px] font-label text-sun-gold mb-0.5">
                     <span className="font-bold">{ach.year}</span>
                     <span className="text-titanium/70">{ach.type}</span>
@@ -166,7 +208,7 @@ export const SectorNeuralCore: React.FC<SectorNeuralCoreProps> = ({ opacity }) =
         </div>
 
         {/* Right Column: Light-Mode Developer Terminal (Span 6) */}
-        <div className={`lg:col-span-6 ${activeTab === 'terminal' ? 'block' : 'hidden lg:block'}`}>
+        <div ref={terminalRef} className={`lg:col-span-6 ${activeTab === 'terminal' ? 'block' : 'hidden lg:block'}`}>
           <h3 className="hidden lg:block font-display text-base sm:text-lg font-bold text-obsidian mb-2.5">
             Interactive Terminal HUD
           </h3>
@@ -179,21 +221,21 @@ export const SectorNeuralCore: React.FC<SectorNeuralCoreProps> = ({ opacity }) =
                 <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
                 <span className="ml-1.5 text-titanium font-medium text-[11px]">AETHER_TTY1 // LIGHT_SHELL</span>
               </div>
-              <span className="text-emerald-600 text-[10px] font-bold">ONLINE</span>
+              <span className="text-sun-gold text-[10px] font-mono">STATUS: CONNECTED</span>
             </div>
 
-            {/* Terminal Output */}
-            <div className="overflow-y-auto space-y-1.5 text-[11px] font-mono pr-1 flex-grow">
+            {/* Scrollable Terminal Output Body */}
+            <div className="overflow-y-auto space-y-1.5 pr-1 font-mono text-xs text-obsidian/90 flex-1 select-text">
               {history.map((line, idx) => (
                 <div
                   key={idx}
                   className={`leading-relaxed whitespace-pre-wrap ${
                     line.type === 'input'
-                      ? 'text-obsidian font-bold'
+                      ? 'text-sun-gold font-semibold'
                       : line.type === 'success'
-                      ? 'text-emerald-600 font-semibold'
+                      ? 'text-emerald-700 font-medium'
                       : line.type === 'warning'
-                      ? 'text-sun-gold font-medium'
+                      ? 'text-amber-700 font-medium'
                       : 'text-titanium'
                   }`}
                 >
@@ -203,60 +245,24 @@ export const SectorNeuralCore: React.FC<SectorNeuralCoreProps> = ({ opacity }) =
               <div ref={bottomRef} />
             </div>
 
-            {/* Input Line */}
-            <form onSubmit={handleCommand} className="flex items-center gap-2 pt-2 border-t border-border-subtle">
-              <span className="font-mono text-xs text-sun-gold font-bold shrink-0">
-                guest@aether:~$
-              </span>
+            {/* Terminal Input Form */}
+            <form onSubmit={handleCommand} className="mt-2 pt-2 border-t border-border-subtle flex items-center gap-2">
+              <span className="font-mono text-sun-gold font-bold text-xs select-none">guest@aether:~$</span>
               <input
                 type="text"
                 value={inputVal}
                 onChange={(e) => setInputVal(e.target.value)}
-                placeholder="Type 'help' or 'hire'..."
-                className="w-full bg-transparent border-none outline-none font-mono text-sm sm:text-xs text-obsidian placeholder-titanium/40"
+                placeholder="type command (e.g. 'help', 'projects', 'hire')..."
+                className="flex-1 bg-transparent font-mono text-xs text-obsidian focus:outline-none placeholder:text-titanium/50"
               />
               <button
                 type="submit"
-                className="btn-gold px-3.5 sm:px-3 py-1.5 sm:py-1 min-h-[32px] rounded-md text-[10px] font-label font-semibold uppercase cursor-pointer"
+                className="px-2.5 py-1 rounded bg-sun-gold text-white text-[10px] font-label font-bold uppercase tracking-wider hover:bg-warm-bronze transition-colors cursor-pointer"
               >
                 EXEC
               </button>
             </form>
           </div>
-        </div>
-      </div>
-
-      {/* Footer Links (Compact, guaranteed to fit inside screen) */}
-      <div className="flex flex-wrap justify-center sm:justify-between items-center w-full pt-2.5 sm:pt-3 border-t border-border-subtle/80 text-[10px] sm:text-[11px] font-label text-titanium gap-3 sm:gap-2 shrink-0">
-        <div className="flex items-center gap-4 sm:gap-5">
-          <a
-            href={portfolioConfig.author.github}
-            target="_blank"
-            rel="noreferrer"
-            className="hover:text-sun-gold transition-colors font-medium"
-          >
-            — GITHUB
-          </a>
-          <a
-            href={portfolioConfig.author.linkedin}
-            target="_blank"
-            rel="noreferrer"
-            className="hover:text-sun-gold transition-colors font-medium"
-          >
-            — LINKEDIN
-          </a>
-          <a
-            href={portfolioConfig.author.huggingface}
-            target="_blank"
-            rel="noreferrer"
-            className="hover:text-sun-gold transition-colors font-medium"
-          >
-            — HUGGING_FACE
-          </a>
-        </div>
-
-        <div className="text-center sm:text-right text-[10px] text-titanium/70">
-          DESIGNED WITH ARCHITECTURAL CLARITY // 2026.
         </div>
       </div>
     </section>
