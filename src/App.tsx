@@ -33,8 +33,8 @@ export function App() {
       orientation: 'vertical',
       gestureOrientation: 'vertical',
       smoothWheel: true,
-      syncTouch: true,
-      touchMultiplier: isTouch ? 1.4 : 1.1,
+      syncTouch: !isTouch,
+      touchMultiplier: isTouch ? 0 : 1.1,
       wheelMultiplier: 0.9,
       infinite: false,
     });

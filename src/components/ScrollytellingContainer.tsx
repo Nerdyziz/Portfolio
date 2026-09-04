@@ -1,15 +1,27 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { World3DCanvas } from './3d/World3DCanvas';
 import { SectorHero } from './SectorHero';
 import { SectorDatacenter } from './SectorDatacenter';
 import { SectorNeuralCore } from './SectorNeuralCore';
+import { TouchJoystick } from './TouchJoystick';
 import { Project } from '../types';
 
 import { soundEngine } from '../utils/audio';
 
 gsap.registerPlugin(ScrollTrigger);
+
+export const SHOWCASE_STATIONS = [
+  { id: 'strato', progress: 0.040, name: '01. STRATOSPHERE' },
+  { id: 'gate', progress: 0.200, name: '02. AIRLOCK GATE [READ]' },
+  { id: 'rack1', progress: 0.340, name: '03. RACK 01 [READ]' },
+  { id: 'rack2', progress: 0.440, name: '04. RACK 02 [READ]' },
+  { id: 'rack3', progress: 0.540, name: '05. RACK 03 [READ]' },
+  { id: 'chip', progress: 0.660, name: '06. SILICON CORE [READ]' },
+  { id: 'terminal', progress: 0.830, name: '07. ARCHITECT LOGBOOK [READ]' },
+  { id: 'takeoff', progress: 0.920, name: '08. RUNWAY TAKEOFF' },
+];
 
 interface ScrollytellingContainerProps {
   onInspectProject: (project: Project) => void;
@@ -21,7 +33,19 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
   onCvClick
 }) => {
   const [scrollProgress, setScrollProgress] = useState(0);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
   const scrollTrackRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const checkTouch = () => {
+      setIsTouchDevice(
+        'ontouchstart' in window || navigator.maxTouchPoints > 0 || window.innerWidth < 1024
+      );
+    };
+    checkTouch();
+    window.addEventListener('resize', checkTouch);
+    return () => window.removeEventListener('resize', checkTouch);
+  }, []);
 
   useEffect(() => {
     // Reset scroll to top on mount
@@ -170,8 +194,63 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
     }
   };
 
+  // Handle Joystick Velocity Driving with Magnetic Reading Detents
+  const handleJoystickDrive = useCallback(
+    (velocity: number) => {
+      // Velocity: -1 (reverse) to +1 (forward)
+      const baseSpeed = 0.0034;
+      let effectiveVelocity = velocity * baseSpeed;
+
+      // Magnetic station stop check
+      for (const station of SHOWCASE_STATIONS) {
+        const delta = scrollProgress - station.progress;
+        // If near a station (+/- 0.009)
+        if (Math.abs(delta) < 0.009) {
+          // If user is lightly nudging (< 0.52), apply magnetic reading resistance
+          if (Math.abs(velocity) < 0.52) {
+            effectiveVelocity *= 0.15; // gentle stop to read
+          }
+        }
+      }
+
+      const nextProgress = Math.min(1, Math.max(0, scrollProgress + effectiveVelocity));
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      const targetY = nextProgress * maxScroll;
+
+      const lenis = (window as unknown as { lenis?: any }).lenis;
+      if (lenis) {
+        lenis.scrollTo(targetY, { immediate: true });
+      } else {
+        window.scrollTo(0, targetY);
+      }
+    },
+    [scrollProgress]
+  );
+
+  const handleNextStation = () => {
+    soundEngine.playClick(1100);
+    const next = SHOWCASE_STATIONS.find((s) => s.progress > scrollProgress + 0.015);
+    if (next) {
+      scrollToProgress(next.progress);
+    }
+  };
+
+  const handlePrevStation = () => {
+    soundEngine.playClick(950);
+    const prev = [...SHOWCASE_STATIONS].reverse().find((s) => s.progress < scrollProgress - 0.015);
+    if (prev) {
+      scrollToProgress(prev.progress);
+    }
+  };
+
+  const currentStation = SHOWCASE_STATIONS.reduce((prev, curr) => {
+    return Math.abs(curr.progress - scrollProgress) < Math.abs(prev.progress - scrollProgress)
+      ? curr
+      : prev;
+  }, SHOWCASE_STATIONS[0]);
+
   return (
-    <div className="relative w-full">
+    <div className={`relative w-full ${isTouchDevice ? 'touch-none' : ''}`}>
       {/* 1. Full-Screen Pinned 3D WebGL Canvas Layer (Airlock Gate + Silicon Cards on Doors) */}
       <World3DCanvas
         scrollProgress={scrollProgress}
@@ -336,6 +415,16 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
           );
         })}
       </div>
+
+      {/* 5. Virtual Aerospace Flight Joystick for Touch & Mobile Devices */}
+      {isTouchDevice && (
+        <TouchJoystick
+          onDrive={handleJoystickDrive}
+          onNextStation={handleNextStation}
+          onPrevStation={handlePrevStation}
+          currentStationName={currentStation.name}
+        />
+      )}
     </div>
   );
 };
