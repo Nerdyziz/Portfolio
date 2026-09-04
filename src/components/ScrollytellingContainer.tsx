@@ -34,6 +34,17 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
   const [scrollProgress, setScrollProgress] = useState(0);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const scrollTrackRef = useRef<HTMLDivElement>(null);
+  const scrollProgressRef = useRef(0);
+  const isJoystickFlyingRef = useRef(false);
+  const maxScrollRef = useRef(0);
+  const lastDomScrollTimeRef = useRef(0);
+  const targetVelocityRef = useRef(0);
+  const currentVelocityRef = useRef(0);
+  const lockedStationIdRef = useRef<string | null>(null);
+  const lastUnlockedStationIdRef = useRef<string | null>(null);
+  const lockTimestampRef = useRef<number>(0);
+  const releasedSinceLockRef = useRef<boolean>(true);
+  const [stationBadgeText, setStationBadgeText] = useState<string | null>(null);
 
   useEffect(() => {
     const checkTouch = () => {
@@ -51,11 +62,19 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
     window.scrollTo(0, 0);
     setScrollProgress(0);
 
+    const updateMaxScroll = () => {
+      maxScrollRef.current = document.documentElement.scrollHeight - window.innerHeight;
+    };
+    updateMaxScroll();
+    window.addEventListener('resize', updateMaxScroll);
+
     const st = ScrollTrigger.create({
       trigger: scrollTrackRef.current,
       start: 'top top',
       end: 'bottom bottom',
       onUpdate: (self) => {
+        // Prevent feedback loop when scrolling is driven by the virtual joystick / ticker
+        if (isJoystickFlyingRef.current) return;
         setScrollProgress(self.progress);
       },
     });
@@ -65,7 +84,9 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
       const lenis = (window as unknown as { lenis?: any }).lenis;
       if (lenis && !unsubscribe) {
         unsubscribe = lenis.on('scroll', () => {
-          ScrollTrigger.update();
+          if (!isJoystickFlyingRef.current) {
+            ScrollTrigger.update();
+          }
         });
         return true;
       }
@@ -80,6 +101,7 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
     }
 
     return () => {
+      window.removeEventListener('resize', updateMaxScroll);
       if (typeof unsubscribe === 'function') unsubscribe();
       st.kill();
     };
@@ -116,6 +138,14 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
       isResettingRef.current = true;
       setPortalOpacity(1);
 
+      scrollProgressRef.current = 0.0;
+      setScrollProgress(0.0);
+      currentVelocityRef.current = 0;
+      targetVelocityRef.current = 0;
+      lastUnlockedStationIdRef.current = null;
+      lockedStationIdRef.current = null;
+      isJoystickFlyingRef.current = false;
+
       // Instantly reset scroll to top (Section 1)
       const lenis = (window as unknown as { lenis?: any }).lenis;
       if (lenis) {
@@ -129,7 +159,7 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
         window.setTimeout(() => {
           isResettingRef.current = false;
         }, 850);
-      }, 150);
+      }, 200);
 
       // Do NOT clear timer in cleanup so the fade-out always executes!
     } else if (!isResettingRef.current) {
@@ -180,7 +210,9 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
   const flightSectionOpacity = getOpacity(0.880, 0.895, 0.955, 0.970);
 
   const scrollToProgress = (targetProgress: number) => {
-    const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+    const maxScroll = maxScrollRef.current > 0
+      ? maxScrollRef.current
+      : document.documentElement.scrollHeight - window.innerHeight;
     const targetY = maxScroll * targetProgress;
     const lenis = (window as unknown as { lenis?: any }).lenis;
     if (lenis) {
@@ -193,15 +225,6 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
     }
   };
 
-  const scrollProgressRef = useRef(0);
-  const targetVelocityRef = useRef(0);
-  const currentVelocityRef = useRef(0);
-  const lockedStationIdRef = useRef<string | null>(null);
-  const lastUnlockedStationIdRef = useRef<string | null>(null);
-  const lockTimestampRef = useRef<number>(0);
-  const releasedSinceLockRef = useRef<boolean>(true);
-  const [stationBadgeText, setStationBadgeText] = useState<string | null>(null);
-
   // Keep ref in sync
   useEffect(() => {
     scrollProgressRef.current = scrollProgress;
@@ -213,6 +236,12 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
       const now = Date.now();
       const currentP = scrollProgressRef.current;
       const isLocked = lockedStationIdRef.current !== null;
+
+      // If currently transitioning via cloud portal, pause flight until arrival in Section 1
+      if (isResettingRef.current) {
+        currentVelocityRef.current = 0;
+        return;
+      }
 
       // If resting at a station / deck
       if (isLocked) {
@@ -240,6 +269,7 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
       currentVelocityRef.current += (targetVelocityRef.current - currentVelocityRef.current) * 0.12;
 
       if (Math.abs(currentVelocityRef.current) > 0.000005) {
+        isJoystickFlyingRef.current = true;
         let v = currentVelocityRef.current;
 
         // Clear cooldown once we've traveled away from the station we just left
@@ -250,6 +280,34 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
           if (unlockedStation && Math.abs(currentP - unlockedStation.progress) > 0.022) {
             lastUnlockedStationIdRef.current = null;
           }
+        }
+
+        // Forward motion: check continuous flight loop re-entry into Section 1 Stratosphere
+        if (v > 0 && currentP + v >= 0.990) {
+          isResettingRef.current = true;
+          setPortalOpacity(1);
+
+          scrollProgressRef.current = 0.0;
+          setScrollProgress(0.0);
+          currentVelocityRef.current = 0;
+          targetVelocityRef.current = 0;
+          lastUnlockedStationIdRef.current = null;
+          lockedStationIdRef.current = null;
+          isJoystickFlyingRef.current = false;
+
+          const lenis = (window as unknown as { lenis?: any }).lenis;
+          if (lenis) {
+            lenis.scrollTo(0, { immediate: true });
+          }
+          window.scrollTo(0, 0);
+
+          window.setTimeout(() => {
+            setPortalOpacity(0);
+            window.setTimeout(() => {
+              isResettingRef.current = false;
+            }, 850);
+          }, 200);
+          return;
         }
 
         // Forward motion: check approach to upcoming station
@@ -273,12 +331,12 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
               lockedStationIdRef.current = station.id;
               lockTimestampRef.current = now;
               releasedSinceLockRef.current = false;
+              isJoystickFlyingRef.current = false;
               setStationBadgeText(`${station.name}`);
               soundEngine.playClick(1100);
 
-              const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-              if (maxScroll > 0) {
-                window.scrollTo(0, station.progress * maxScroll);
+              if (maxScrollRef.current > 0) {
+                window.scrollTo(0, station.progress * maxScrollRef.current);
               }
               return;
             }
@@ -301,12 +359,12 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
               lockedStationIdRef.current = station.id;
               lockTimestampRef.current = now;
               releasedSinceLockRef.current = false;
+              isJoystickFlyingRef.current = false;
               setStationBadgeText(`${station.name}`);
               soundEngine.playClick(900);
 
-              const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-              if (maxScroll > 0) {
-                window.scrollTo(0, station.progress * maxScroll);
+              if (maxScrollRef.current > 0) {
+                window.scrollTo(0, station.progress * maxScrollRef.current);
               }
               return;
             }
@@ -317,9 +375,18 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
         scrollProgressRef.current = nextProgress;
         setScrollProgress(nextProgress);
 
-        const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-        if (maxScroll > 0) {
-          window.scrollTo(0, nextProgress * maxScroll);
+        // Throttle DOM window.scrollTo during flight (every 250ms) to eliminate forced reflows
+        if (now - lastDomScrollTimeRef.current > 250) {
+          lastDomScrollTimeRef.current = now;
+          if (maxScrollRef.current > 0) {
+            window.scrollTo(0, nextProgress * maxScrollRef.current);
+          }
+        }
+      } else if (isJoystickFlyingRef.current) {
+        // Flight came to rest: sync DOM scroll position once cleanly
+        isJoystickFlyingRef.current = false;
+        if (maxScrollRef.current > 0) {
+          window.scrollTo(0, currentP * maxScrollRef.current);
         }
       }
     };
@@ -408,7 +475,7 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
             className="absolute top-18 sm:top-24 left-1/2 -translate-x-1/2 pointer-events-none transition-opacity duration-300 max-w-[92vw]"
             style={{ opacity: terminalSectionOpacity }}
           >
-            <div className="flex items-center gap-2 sm:gap-3 px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-full bg-white/95 backdrop-blur-md border border-sun-gold/40 shadow-xl max-w-full truncate">
+            <div className="flex items-center gap-2 sm:gap-3 px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-full bg-white/95 border border-sun-gold/40 shadow-xl max-w-full truncate">
               <span className="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
               <span className="font-mono text-[10px] sm:text-xs tracking-wider sm:tracking-widest text-obsidian font-bold uppercase truncate">
                 TERMINAL // ARCHITECT LOGBOOK [TRANSMISSION ACTIVE]
@@ -423,7 +490,7 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
             className="absolute top-18 sm:top-24 left-1/2 -translate-x-1/2 pointer-events-none transition-opacity duration-300 max-w-[92vw]"
             style={{ opacity: flightSectionOpacity }}
           >
-            <div className="flex items-center gap-2 sm:gap-3 px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-full bg-white/95 backdrop-blur-md border border-sun-gold/40 shadow-xl max-w-full truncate">
+            <div className="flex items-center gap-2 sm:gap-3 px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-full bg-white/95 border border-sun-gold/40 shadow-xl max-w-full truncate">
               <span className="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-full bg-sun-gold animate-ping shrink-0" />
               <span className="font-mono text-[10px] sm:text-xs tracking-wider sm:tracking-widest text-obsidian font-bold uppercase truncate">
                 AETHER-01 // AIRBORNE TAKEOFF VECTOR ACTIVE
@@ -441,7 +508,6 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
           visibility: cloudDiveOpacity > 0.005 ? 'visible' : 'hidden',
           background:
             'radial-gradient(ellipse at center, rgba(255,255,255,0.7) 0%, rgba(240,249,255,0.4) 60%, rgba(255,255,255,0) 100%)',
-          backdropFilter: cloudDiveOpacity > 0.05 ? `blur(${cloudDiveOpacity * 10}px)` : 'none',
         }}
       />
 

@@ -114,9 +114,9 @@ export const TouchJoystick: React.FC<TouchJoystickProps> = ({
           onPointerDown={handlePointerDown}
           className={`relative w-[92px] h-[92px] rounded-full flex items-center justify-center cursor-grab active:cursor-grabbing transition-all touch-none select-none ${
             isActive
-              ? 'bg-obsidian/65 border-sun-gold shadow-[0_0_30px_rgba(245,166,35,0.45)] scale-105'
-              : 'bg-white/85 hover:bg-white/95 border-border-subtle hover:border-sun-gold/50 shadow-xl'
-          } backdrop-blur-xl border-2`}
+              ? 'bg-obsidian/90 border-sun-gold shadow-[0_0_30px_rgba(245,166,35,0.45)] scale-105'
+              : 'bg-white/95 hover:bg-white border-border-subtle hover:border-sun-gold/50 shadow-xl'
+          } border-2`}
         >
           {/* Subtle Outer Compass Markings */}
           <div className="absolute inset-1 rounded-full border border-dashed border-sun-gold/25 pointer-events-none" />
@@ -161,7 +161,7 @@ export const TouchJoystick: React.FC<TouchJoystickProps> = ({
 
       {/* Current Station Tag Badge */}
       {currentStationName && (
-        <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/95 backdrop-blur-md border border-border-subtle shadow-md text-[10px] font-label text-titanium pointer-events-none mb-6">
+        <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/95 border border-border-subtle shadow-md text-[10px] font-label text-titanium pointer-events-none mb-6">
           <Compass className="w-3 h-3 text-sun-gold animate-spin [animation-duration:12s]" />
           <span className="font-semibold text-obsidian">{currentStationName}</span>
         </div>

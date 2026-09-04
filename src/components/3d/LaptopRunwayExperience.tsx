@@ -30,11 +30,22 @@ export const LaptopRunwayExperience: React.FC<LaptopRunwayExperienceProps> = ({ 
   // Top half (y: 0 to 1280): Architect Logbook & Thank You Message
   // Bottom half (y: 1280 to 2560): Aerodrome Runway & Sky
   const canvasTexture = useMemo(() => {
+    const isMobileDevice = typeof window !== 'undefined' && (
+      window.innerWidth < 768 ||
+      'ontouchstart' in window ||
+      navigator.maxTouchPoints > 0
+    );
     const canvas = document.createElement('canvas');
-    canvas.width = 2048;
-    canvas.height = 2560;
+    const scaleFactor = isMobileDevice ? 0.5 : 1.0;
+    const baseW = 2048;
+    const baseH = 2560;
+    canvas.width = Math.round(baseW * scaleFactor);
+    canvas.height = Math.round(baseH * scaleFactor);
     const ctx = canvas.getContext('2d');
     if (ctx) {
+      if (scaleFactor !== 1.0) {
+        ctx.scale(scaleFactor, scaleFactor);
+      }
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
 
@@ -46,12 +57,12 @@ export const LaptopRunwayExperience: React.FC<LaptopRunwayExperienceProps> = ({ 
       termGrad.addColorStop(0.5, '#090E1C');
       termGrad.addColorStop(1, '#070B14');
       ctx.fillStyle = termGrad;
-      ctx.fillRect(0, 0, canvas.width, 1280);
+      ctx.fillRect(0, 0, baseW, 1280);
 
       // Subtle tech grid lines
       ctx.strokeStyle = 'rgba(56, 189, 248, 0.05)';
       ctx.lineWidth = 2;
-      for (let x = 0; x < canvas.width; x += 80) {
+      for (let x = 0; x < baseW; x += 80) {
         ctx.beginPath();
         ctx.moveTo(x, 0);
         ctx.lineTo(x, 1280);
@@ -60,18 +71,18 @@ export const LaptopRunwayExperience: React.FC<LaptopRunwayExperienceProps> = ({ 
       for (let y = 0; y < 1280; y += 80) {
         ctx.beginPath();
         ctx.moveTo(0, y);
-        ctx.lineTo(canvas.width, y);
+        ctx.lineTo(baseW, y);
         ctx.stroke();
       }
 
       // Top Terminal Header Bar (Height 96)
       ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
-      ctx.fillRect(0, 0, canvas.width, 96);
+      ctx.fillRect(0, 0, baseW, 96);
       ctx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(0, 96);
-      ctx.lineTo(canvas.width, 96);
+      ctx.lineTo(baseW, 96);
       ctx.stroke();
 
       ctx.fillStyle = '#38BDF8';
@@ -81,38 +92,53 @@ export const LaptopRunwayExperience: React.FC<LaptopRunwayExperienceProps> = ({ 
 
       ctx.fillStyle = '#94A3B8';
       ctx.textAlign = 'right';
-      ctx.fillText('STATUS: ONLINE [432Hz]  ●  SYS_ID: ARCH-77', canvas.width - 50, 60);
+      ctx.fillText('STATUS: ONLINE [432Hz]  ●  SYS_ID: ARCH-77', baseW - 50, 60);
 
-      // Amber Transmission Status Badge
-      ctx.fillStyle = 'rgba(245, 166, 35, 0.15)';
-      ctx.strokeStyle = 'rgba(245, 166, 35, 0.7)';
-      ctx.lineWidth = 3;
+      // Terminal Monospace Log Entries
+      ctx.font = 'bold 24px monospace';
+      ctx.textAlign = 'left';
+
+      // Line 1: Green sys message
+      ctx.fillStyle = '#10B981';
+      ctx.fillText('> SYSTEM_CORE: ONLINE  //  TELEMETRY STREAM SYNCHRONIZED', 90, 160);
+
+      // Line 2: Blue info
+      ctx.fillStyle = '#38BDF8';
+      ctx.fillText('> ARCHITECT_ID: MOHAMMAD HASNAIN RAZA  [SOFTWARE ARCHITECT]', 90, 205);
+
+      // Line 3: Location
+      ctx.fillStyle = '#E2E8F0';
+      ctx.fillText('> LOCATION: BENGALURU, INDIA  //  TIMEZONE: IST (UTC +5:30)', 90, 250);
+
+      // Line 4: System Stack
+      ctx.fillStyle = '#CBD5E1';
+      ctx.fillText('> CAPABILITIES: DISTRIBUTED SYSTEMS  ●  HIGH-PERF 3D WEB  ●  AI/ML', 90, 295);
+
+      // Line 5: Divider
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.25)';
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.roundRect(1024 - 360, 160, 720, 64, 32);
-      ctx.fill();
+      ctx.moveTo(90, 325);
+      ctx.lineTo(baseW - 90, 325);
       ctx.stroke();
 
+      // Big Headline: Thank You Message
       ctx.fillStyle = '#F5A623';
-      ctx.font = 'bold 26px monospace';
+      ctx.font = '900 52px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('● TRANSMISSION ARCHIVED // SYSTEM LOG 2026', 1024, 202);
+      ctx.fillText('THANK YOU FOR EXPLORING THE ARCHITECTURE', 1024, 400);
 
-      // Main Thank You Headline (Razor-sharp bold typography)
-      ctx.fillStyle = '#FFFFFF';
-      ctx.font = '900 76px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-      ctx.fillText('THANK YOU FOR VISITING', 1024, 335);
-
-      // Sub-headline (High-contrast bright silver)
-      ctx.fillStyle = '#CBD5E1';
-      ctx.font = '600 38px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-      ctx.fillText('Hope you enjoyed this journey from Cloud Stratosphere to Silicon.', 1024, 405);
+      // Sub-headline
+      ctx.fillStyle = '#E2E8F0';
+      ctx.font = '500 28px sans-serif';
+      ctx.fillText('You have reached the inner sanctum of the creative neural core.', 1024, 445);
 
       // Philosophy / Architecture Card
       ctx.fillStyle = 'rgba(26, 36, 54, 0.9)';
       ctx.strokeStyle = 'rgba(245, 166, 35, 0.5)';
       ctx.lineWidth = 2.5;
       ctx.beginPath();
-      ctx.roundRect(180, 480, canvas.width - 360, 280, 28);
+      ctx.roundRect(180, 480, baseW - 360, 280, 28);
       ctx.fill();
       ctx.stroke();
 
@@ -126,14 +152,14 @@ export const LaptopRunwayExperience: React.FC<LaptopRunwayExperienceProps> = ({ 
       ctx.fillText('— MOHAMMAD HASNAIN RAZA // ARCHITECT', 1024, 700);
 
       // Catchy Departure Callout Container
-      const calloutGrad = ctx.createLinearGradient(260, 830, canvas.width - 260, 990);
+      const calloutGrad = ctx.createLinearGradient(260, 830, baseW - 260, 990);
       calloutGrad.addColorStop(0, 'rgba(245, 166, 35, 0.35)');
       calloutGrad.addColorStop(1, 'rgba(212, 175, 55, 0.22)');
       ctx.fillStyle = calloutGrad;
       ctx.strokeStyle = '#F5A623';
       ctx.lineWidth = 4;
       ctx.beginPath();
-      ctx.roundRect(260, 830, canvas.width - 520, 160, 36);
+      ctx.roundRect(260, 830, baseW - 520, 160, 36);
       ctx.fill();
       ctx.stroke();
 
@@ -163,7 +189,7 @@ export const LaptopRunwayExperience: React.FC<LaptopRunwayExperienceProps> = ({ 
       skyGrad.addColorStop(0.9, '#FEF08A');
       skyGrad.addColorStop(1, '#FFFBEB');
       ctx.fillStyle = skyGrad;
-      ctx.fillRect(0, rwyTop, canvas.width, horizonY - rwyTop);
+      ctx.fillRect(0, rwyTop, baseW, horizonY - rwyTop);
 
       // Mountain Silhouette
       ctx.fillStyle = '#E0F2FE';
@@ -176,22 +202,22 @@ export const LaptopRunwayExperience: React.FC<LaptopRunwayExperienceProps> = ({ 
       ctx.fill();
 
       // Aerodrome Tarmac Ground
-      const groundGrad = ctx.createLinearGradient(0, horizonY, 0, canvas.height);
+      const groundGrad = ctx.createLinearGradient(0, horizonY, 0, baseH);
       groundGrad.addColorStop(0, '#1E293B');
       groundGrad.addColorStop(1, '#090D16');
       ctx.fillStyle = groundGrad;
-      ctx.fillRect(0, horizonY, canvas.width, canvas.height - horizonY);
+      ctx.fillRect(0, horizonY, baseW, baseH - horizonY);
 
       // Runway Trapezoid
-      const rwyGrad = ctx.createLinearGradient(0, horizonY, 0, canvas.height);
+      const rwyGrad = ctx.createLinearGradient(0, horizonY, 0, baseH);
       rwyGrad.addColorStop(0, '#334155');
       rwyGrad.addColorStop(1, '#1E293B');
       ctx.fillStyle = rwyGrad;
       ctx.beginPath();
       ctx.moveTo(1024 - 90, horizonY);
       ctx.lineTo(1024 + 90, horizonY);
-      ctx.lineTo(1024 + 600, canvas.height);
-      ctx.lineTo(1024 - 600, canvas.height);
+      ctx.lineTo(1024 + 600, baseH);
+      ctx.lineTo(1024 - 600, baseH);
       ctx.closePath();
       ctx.fill();
 
@@ -200,9 +226,9 @@ export const LaptopRunwayExperience: React.FC<LaptopRunwayExperienceProps> = ({ 
       ctx.lineWidth = 10;
       ctx.beginPath();
       ctx.moveTo(1024 - 90, horizonY);
-      ctx.lineTo(1024 - 590, canvas.height);
+      ctx.lineTo(1024 - 590, baseH);
       ctx.moveTo(1024 + 90, horizonY);
-      ctx.lineTo(1024 + 590, canvas.height);
+      ctx.lineTo(1024 + 590, baseH);
       ctx.stroke();
 
       // Centerline
@@ -211,14 +237,14 @@ export const LaptopRunwayExperience: React.FC<LaptopRunwayExperienceProps> = ({ 
       ctx.setLineDash([70, 70]);
       ctx.beginPath();
       ctx.moveTo(1024, horizonY);
-      ctx.lineTo(1024, canvas.height);
+      ctx.lineTo(1024, baseH);
       ctx.stroke();
       ctx.setLineDash([]);
 
       // Green Runway Threshold Lights
       for (let i = 0; i < 9; i++) {
         const t = i / 8;
-        const y = horizonY + t * (canvas.height - horizonY);
+        const y = horizonY + t * (baseH - horizonY);
         const xL = (1024 - 90) + t * (-500);
         const xR = (1024 + 90) + t * (500);
 
@@ -233,11 +259,11 @@ export const LaptopRunwayExperience: React.FC<LaptopRunwayExperienceProps> = ({ 
       ctx.fillStyle = '#FFFFFF';
       ctx.font = 'bold 68px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('0 1', 1024, canvas.height - 50);
+      ctx.fillText('0 1', 1024, baseH - 50);
 
       // Top HUD Banner on Runway
       ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-      ctx.fillRect(0, rwyTop, canvas.width, 90);
+      ctx.fillRect(0, rwyTop, baseW, 90);
 
       ctx.fillStyle = '#38BDF8';
       ctx.font = 'bold 28px monospace';
@@ -245,7 +271,7 @@ export const LaptopRunwayExperience: React.FC<LaptopRunwayExperienceProps> = ({ 
       ctx.fillText('AETHER FLIGHT DECK // RWY 01-L [TAKEOFF CLEARANCE ACTIVE]', 40, rwyTop + 55);
 
       ctx.textAlign = 'right';
-      ctx.fillText('POWER: 100% // HEADING: 360°', canvas.width - 40, rwyTop + 55);
+      ctx.fillText('POWER: 100% // HEADING: 360°', baseW - 40, rwyTop + 55);
     }
 
     const tex = new THREE.CanvasTexture(canvas);
@@ -256,11 +282,6 @@ export const LaptopRunwayExperience: React.FC<LaptopRunwayExperienceProps> = ({ 
     tex.generateMipmaps = true;
     tex.minFilter = THREE.LinearMipmapLinearFilter;
     tex.magFilter = THREE.LinearFilter;
-    const isMobileDevice = typeof window !== 'undefined' && (
-      window.innerWidth < 768 ||
-      'ontouchstart' in window ||
-      navigator.maxTouchPoints > 0
-    );
     tex.anisotropy = isMobileDevice ? 4 : 16;
     return tex;
   }, []);
