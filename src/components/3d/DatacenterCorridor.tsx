@@ -139,17 +139,18 @@ function RackWithDoor({
           </mesh>
 
           {/* SILICON SUBSTRATE CARD EMBEDDED ON 3D GLASS DOOR */}
-          {!isMobile && skillData && cardOpacity > 0.01 && (
+          {skillData && cardOpacity > 0.01 && (
             <Html
               transform
               position={[isLeft ? 0.05 : -0.05, 0, 0.03]}
-              distanceFactor={1.55}
+              distanceFactor={isMobile ? 1.45 : 1.55}
               style={{
-                width: '250px',
+                width: isMobile ? '230px' : '250px',
                 pointerEvents: cardOpacity > 0.1 ? 'auto' : 'none',
                 userSelect: 'none',
                 opacity: cardOpacity,
-                transition: 'opacity 0.2s ease-out'
+                transition: 'opacity 0.2s ease-out',
+                willChange: 'transform, opacity'
               }}
             >
               <div

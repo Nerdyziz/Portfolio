@@ -24,6 +24,12 @@ export const SectorHero: React.FC<SectorHeroProps> = ({
   const buttonsRef = useRef<HTMLDivElement>(null);
   const subPillRef = useRef<HTMLDivElement>(null);
 
+  const isMobile = typeof window !== 'undefined' && (
+    window.innerWidth < 768 ||
+    'ontouchstart' in window ||
+    navigator.maxTouchPoints > 0
+  );
+
   // GSAP Initial Mount Staggered Entrance (Luxury High-End Motion)
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -53,7 +59,7 @@ export const SectorHero: React.FC<SectorHeroProps> = ({
   const effectiveOpacity = Math.max(opacity, 0.85);
 
   // User directive:
-  // Foreground clouds overlap text at scroll 0; as user scrolls, clouds part and exit outward, revealing text
+  // Clouds gently frame the edges at scroll 0; as user scrolls, clouds part and exit outward
   const revealProgress = Math.min(1, Math.max(0, scrollProgress / 0.048));
   const exitEase = gsap.parseEase('power2.inOut')(revealProgress);
   const cloudFade = Math.max(0, 1 - revealProgress * 1.25);
@@ -71,74 +77,86 @@ export const SectorHero: React.FC<SectorHeroProps> = ({
         className="w-full flex flex-col items-center text-center relative"
       >
         {/* ========================================================================= */}
-        {/* FOREGROUND CLOUDS OVERLAPPING THE TEXT (Z-INDEX 20: SITS ABOVE THE TEXT)  */}
-        {/* Hides parts of the text initially; glides outward and exits on scroll     */}
+        {/* REALISTIC WHITE CLOUDS FRAMING THE PERIMETER (POSITIONED AS IN IMAGE 2)   */}
+        {/* Pure white, crisp, natural cloud texture; center text is 100% open & clear */}
         {/* ========================================================================= */}
         {isCloudVisible && (
           <div
             className="absolute inset-0 pointer-events-none z-20 overflow-visible"
             style={{ opacity: cloudFade }}
           >
-            {/* Cloud 1: Fluffy upper-left cloud overlapping "ARCHITECTING" & "FROM CLOUD" */}
+            {/* Cloud 1: Fluffy upper-left cloud framing the upper-left corner */}
             <div
-              className="absolute -top-10 -left-12 sm:-left-20 w-[300px] sm:w-[460px] md:w-[560px] pointer-events-none transition-transform duration-75 ease-out"
+              className={`absolute -top-12 -left-12 sm:-left-20 w-[260px] sm:w-[400px] md:w-[500px] pointer-events-none ${
+                isMobile ? '' : 'transition-transform duration-75 ease-out'
+              }`}
               style={{
-                transform: `translate(${-exitEase * 260}px, ${-exitEase * 70}px) scale(${1 + exitEase * 0.2})`,
-                filter: 'drop-shadow(0 15px 25px rgba(245, 166, 35, 0.12))',
+                transform: `translate3d(${-exitEase * 240}px, ${-exitEase * 60}px, 0) scale(${1 + exitEase * 0.15})`,
+                willChange: 'transform',
+                filter: isMobile ? 'none' : 'drop-shadow(0 15px 25px rgba(255, 255, 255, 0.4))',
               }}
             >
               <img
                 src="/textures/cloud.png"
                 alt=""
                 className="w-full h-auto opacity-95 select-none"
-                style={{ filter: 'brightness(1.04) contrast(1.02)' }}
+                style={{ filter: 'brightness(1.05) contrast(1.0)' }}
               />
             </div>
 
-            {/* Cloud 2: Fluffy center-right cloud overlapping "TO SILICON" & Subtitle */}
+            {/* Cloud 2: Fluffy upper-right cloud framing the upper-right corner */}
             <div
-              className="absolute top-12 sm:top-16 -right-10 sm:-right-24 w-[320px] sm:w-[480px] md:w-[600px] pointer-events-none transition-transform duration-75 ease-out"
+              className={`absolute top-2 -right-10 sm:-right-20 w-[280px] sm:w-[420px] md:w-[520px] pointer-events-none ${
+                isMobile ? '' : 'transition-transform duration-75 ease-out'
+              }`}
               style={{
-                transform: `translate(${exitEase * 280}px, ${-exitEase * 40}px) scale(${1 + exitEase * 0.2})`,
-                filter: 'drop-shadow(0 15px 25px rgba(255, 255, 255, 0.3))',
+                transform: `translate3d(${exitEase * 240}px, ${-exitEase * 40}px, 0) scale(${1 + exitEase * 0.15})`,
+                willChange: 'transform',
+                filter: isMobile ? 'none' : 'drop-shadow(0 15px 25px rgba(255, 255, 255, 0.4))',
               }}
             >
               <img
                 src="/textures/cloud.png"
                 alt=""
                 className="w-full h-auto opacity-95 select-none"
-                style={{ filter: 'brightness(1.06)' }}
+                style={{ filter: 'brightness(1.05) contrast(1.0)' }}
               />
             </div>
 
-            {/* Cloud 3: Lower-center drifting cloud veil across subtitle & action buttons */}
+            {/* Cloud 3: Lower cloud veil framing the bottom edge (below action buttons) */}
             <div
-              className="absolute top-48 sm:top-56 left-1/2 -translate-x-1/2 w-[380px] sm:w-[580px] md:w-[720px] pointer-events-none transition-transform duration-75 ease-out"
+              className={`absolute -bottom-16 sm:-bottom-24 left-1/2 -translate-x-1/2 w-[340px] sm:w-[560px] md:w-[700px] pointer-events-none ${
+                isMobile ? '' : 'transition-transform duration-75 ease-out'
+              }`}
               style={{
-                transform: `translate(calc(-50% + ${exitEase * 40}px), ${exitEase * 140}px) scale(${1 + exitEase * 0.15})`,
-                filter: 'drop-shadow(0 20px 30px rgba(245, 166, 35, 0.15))',
+                transform: `translate3d(calc(-50% + ${exitEase * 30}px), ${exitEase * 120}px, 0) scale(${1 + exitEase * 0.12})`,
+                willChange: 'transform',
+                filter: isMobile ? 'none' : 'drop-shadow(0 20px 30px rgba(255, 255, 255, 0.35))',
               }}
             >
               <img
                 src="/textures/cloud.png"
                 alt=""
                 className="w-full h-auto opacity-90 select-none"
-                style={{ filter: 'brightness(1.08)' }}
+                style={{ filter: 'brightness(1.06) contrast(1.0)' }}
               />
             </div>
 
-            {/* Cloud 4: Subtle delicate wisp over the top altitude badge */}
+            {/* Cloud 4: Delicate subtle wisp near the altitude badge */}
             <div
-              className="absolute -top-16 left-1/3 w-[220px] sm:w-[320px] pointer-events-none transition-transform duration-75 ease-out"
+              className={`absolute -top-18 left-1/4 w-[180px] sm:w-[280px] pointer-events-none ${
+                isMobile ? '' : 'transition-transform duration-75 ease-out'
+              }`}
               style={{
-                transform: `translate(${-exitEase * 140}px, ${-exitEase * 80}px) scale(${1 + exitEase * 0.25})`,
+                transform: `translate3d(${-exitEase * 120}px, ${-exitEase * 60}px, 0) scale(${1 + exitEase * 0.2})`,
+                willChange: 'transform',
               }}
             >
               <img
                 src="/textures/cloud.png"
                 alt=""
-                className="w-full h-auto opacity-80 select-none"
-                style={{ filter: 'brightness(1.1)' }}
+                className="w-full h-auto opacity-75 select-none"
+                style={{ filter: 'brightness(1.08)' }}
               />
             </div>
           </div>
