@@ -58,6 +58,40 @@ export function App() {
     };
   }, []);
 
+  // Completely disable native touch-swipe scrolling on touch devices so only the joystick navigates
+  useEffect(() => {
+    const isTouch =
+      typeof window !== 'undefined' &&
+      ('ontouchstart' in window || navigator.maxTouchPoints > 0 || window.innerWidth < 1024);
+
+    if (isTouch) {
+      const preventTouchScroll = (e: TouchEvent) => {
+        const target = e.target as HTMLElement | null;
+        // Allow tap and scroll only inside scrollable modals, terminal, or buttons
+        if (
+          target &&
+          (target.closest('button') ||
+            target.closest('input') ||
+            target.closest('a') ||
+            target.closest('.overflow-y-auto') ||
+            target.closest('.select-text'))
+        ) {
+          return;
+        }
+        if (e.cancelable) {
+          e.preventDefault();
+        }
+      };
+
+      document.body.style.overscrollBehavior = 'none';
+      window.addEventListener('touchmove', preventTouchScroll, { passive: false });
+      return () => {
+        document.body.style.overscrollBehavior = 'auto';
+        window.removeEventListener('touchmove', preventTouchScroll);
+      };
+    }
+  }, []);
+
   // Control Lenis based on preloader state
   useEffect(() => {
     const lenis = (window as unknown as { lenis?: Lenis }).lenis;

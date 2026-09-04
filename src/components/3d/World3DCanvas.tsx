@@ -348,8 +348,8 @@ export const World3DCanvas: React.FC<World3DCanvasProps> = ({
         <CameraRig scrollProgress={scrollProgress} />
       </Canvas>
 
-      {/* Persistent HUD Depth Status Monitor - Positioned above Touch Joystick on mobile */}
-      <div className="absolute bottom-28 sm:bottom-6 left-3 sm:left-6 font-label text-[9px] sm:text-[11px] text-titanium/90 tracking-wider sm:tracking-widest pointer-events-none flex items-center gap-2 bg-white/90 backdrop-blur-md px-2.5 sm:px-3.5 py-1 sm:py-1.5 border border-border-subtle rounded-full shadow-md max-w-[85vw] truncate">
+      {/* Persistent HUD Depth Status Monitor - Positioned safely below navbar on mobile */}
+      <div className="absolute top-20 sm:top-auto sm:bottom-6 left-1/2 -translate-x-1/2 sm:left-6 sm:translate-x-0 font-label text-[9px] sm:text-[11px] text-titanium/90 tracking-wider sm:tracking-widest pointer-events-none flex items-center gap-2 bg-white/90 backdrop-blur-md px-2.5 sm:px-3.5 py-1 sm:py-1.5 border border-border-subtle rounded-full shadow-md max-w-[90vw] sm:max-w-[85vw] truncate z-20">
         <span className="w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full bg-sun-gold animate-pulse shrink-0"></span>
         <span className="font-semibold text-obsidian/90 truncate">
           {scrollProgress < 0.085

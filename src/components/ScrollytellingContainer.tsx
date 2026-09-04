@@ -12,15 +12,12 @@ import { soundEngine } from '../utils/audio';
 
 gsap.registerPlugin(ScrollTrigger);
 
-export const SHOWCASE_STATIONS = [
-  { id: 'strato', progress: 0.040, name: '01. STRATOSPHERE' },
-  { id: 'gate', progress: 0.200, name: '02. AIRLOCK GATE [READ]' },
-  { id: 'rack1', progress: 0.340, name: '03. RACK 01 [READ]' },
-  { id: 'rack2', progress: 0.440, name: '04. RACK 02 [READ]' },
-  { id: 'rack3', progress: 0.540, name: '05. RACK 03 [READ]' },
-  { id: 'chip', progress: 0.660, name: '06. SILICON CORE [READ]' },
-  { id: 'terminal', progress: 0.830, name: '07. ARCHITECT LOGBOOK [READ]' },
-  { id: 'takeoff', progress: 0.920, name: '08. RUNWAY TAKEOFF' },
+const SHOWCASE_STATIONS = [
+  { id: 'gate', progress: 0.200, name: '01. AIRLOCK GATE // CATHEDRAL' },
+  { id: 'deck1', progress: 0.350, name: '02. DECK 01 // DISTRIBUTED ARCH' },
+  { id: 'deck2', progress: 0.450, name: '03. DECK 02 // MACHINE LEARNING' },
+  { id: 'deck3', progress: 0.550, name: '04. DECK 03 // HARDWARE FABRIC' },
+  { id: 'core', progress: 0.660, name: '05. NEURAL CORE // RED SILICON' },
 ];
 
 interface ScrollytellingContainerProps {
@@ -194,54 +191,152 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
     }
   };
 
-  // Handle Joystick Velocity Driving with Magnetic Reading Detents
-  const handleJoystickDrive = useCallback(
-    (velocity: number) => {
-      // Velocity: -1 (reverse) to +1 (forward)
-      const baseSpeed = 0.0034;
-      let effectiveVelocity = velocity * baseSpeed;
+  const scrollProgressRef = useRef(0);
+  const targetVelocityRef = useRef(0);
+  const currentVelocityRef = useRef(0);
+  const lockedStationIdRef = useRef<string | null>(null);
+  const lastUnlockedStationIdRef = useRef<string | null>(null);
+  const lockTimestampRef = useRef<number>(0);
+  const releasedSinceLockRef = useRef<boolean>(true);
+  const [stationBadgeText, setStationBadgeText] = useState<string | null>(null);
 
-      // Magnetic station stop check
-      for (const station of SHOWCASE_STATIONS) {
-        const delta = scrollProgress - station.progress;
-        // If near a station (+/- 0.009)
-        if (Math.abs(delta) < 0.009) {
-          // If user is lightly nudging (< 0.52), apply magnetic reading resistance
-          if (Math.abs(velocity) < 0.52) {
-            effectiveVelocity *= 0.15; // gentle stop to read
-          }
+  // Keep ref in sync
+  useEffect(() => {
+    scrollProgressRef.current = scrollProgress;
+  }, [scrollProgress]);
+
+  // Smooth cinematic flight loop with seamless magnetic docking at all decks and stations
+  useEffect(() => {
+    const updateFlight = () => {
+      const now = Date.now();
+      const currentP = scrollProgressRef.current;
+      const isLocked = lockedStationIdRef.current !== null;
+
+      // If resting at a station / deck
+      if (isLocked) {
+        const timeAtStation = now - lockTimestampRef.current;
+        const pushingForward = targetVelocityRef.current > 0.00012;
+        const pushingReverse = targetVelocityRef.current < -0.00012;
+
+        // Smooth breakout: pushing forward after brief moment (350ms) or on re-push
+        if (pushingReverse) {
+          lastUnlockedStationIdRef.current = lockedStationIdRef.current;
+          lockedStationIdRef.current = null;
+          setStationBadgeText(null);
+        } else if (pushingForward && (releasedSinceLockRef.current || timeAtStation > 350)) {
+          lastUnlockedStationIdRef.current = lockedStationIdRef.current;
+          lockedStationIdRef.current = null;
+          setStationBadgeText(null);
+          soundEngine.playClick(1000);
+        } else {
+          currentVelocityRef.current = 0;
+          return;
         }
       }
 
-      const nextProgress = Math.min(1, Math.max(0, scrollProgress + effectiveVelocity));
-      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-      const targetY = nextProgress * maxScroll;
+      // Smooth acceleration and deceleration (lerp towards target velocity)
+      currentVelocityRef.current += (targetVelocityRef.current - currentVelocityRef.current) * 0.12;
 
-      const lenis = (window as unknown as { lenis?: any }).lenis;
-      if (lenis) {
-        lenis.scrollTo(targetY, { immediate: true });
-      } else {
-        window.scrollTo(0, targetY);
+      if (Math.abs(currentVelocityRef.current) > 0.000005) {
+        let v = currentVelocityRef.current;
+
+        // Clear cooldown once we've traveled away from the station we just left
+        if (lastUnlockedStationIdRef.current) {
+          const unlockedStation = SHOWCASE_STATIONS.find(
+            (s) => s.id === lastUnlockedStationIdRef.current
+          );
+          if (unlockedStation && Math.abs(currentP - unlockedStation.progress) > 0.022) {
+            lastUnlockedStationIdRef.current = null;
+          }
+        }
+
+        // Forward motion: check approach to upcoming station
+        if (v > 0) {
+          for (const station of SHOWCASE_STATIONS) {
+            if (lastUnlockedStationIdRef.current === station.id) continue;
+
+            const dist = station.progress - currentP;
+            // Magnetic cushioning as deck gate opens (smooth slow-down, no brick wall!)
+            if (dist > 0 && dist < 0.016) {
+              const cushion = Math.max(0.30, dist / 0.016);
+              v *= cushion;
+            }
+
+            // Settle softly onto station sweet spot
+            if (currentP < station.progress && currentP + v >= station.progress) {
+              scrollProgressRef.current = station.progress;
+              setScrollProgress(station.progress);
+              currentVelocityRef.current = 0;
+              targetVelocityRef.current = 0;
+              lockedStationIdRef.current = station.id;
+              lockTimestampRef.current = now;
+              releasedSinceLockRef.current = false;
+              setStationBadgeText(`${station.name}`);
+              soundEngine.playClick(1100);
+
+              const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+              if (maxScroll > 0) {
+                window.scrollTo(0, station.progress * maxScroll);
+              }
+              return;
+            }
+          }
+        } else if (v < 0) {
+          for (const station of [...SHOWCASE_STATIONS].reverse()) {
+            if (lastUnlockedStationIdRef.current === station.id) continue;
+
+            const dist = currentP - station.progress;
+            if (dist > 0 && dist < 0.016) {
+              const cushion = Math.max(0.30, dist / 0.016);
+              v *= cushion;
+            }
+
+            if (currentP > station.progress && currentP + v <= station.progress) {
+              scrollProgressRef.current = station.progress;
+              setScrollProgress(station.progress);
+              currentVelocityRef.current = 0;
+              targetVelocityRef.current = 0;
+              lockedStationIdRef.current = station.id;
+              lockTimestampRef.current = now;
+              releasedSinceLockRef.current = false;
+              setStationBadgeText(`${station.name}`);
+              soundEngine.playClick(900);
+
+              const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+              if (maxScroll > 0) {
+                window.scrollTo(0, station.progress * maxScroll);
+              }
+              return;
+            }
+          }
+        }
+
+        const nextProgress = Math.min(1, Math.max(0, currentP + v));
+        scrollProgressRef.current = nextProgress;
+        setScrollProgress(nextProgress);
+
+        const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+        if (maxScroll > 0) {
+          window.scrollTo(0, nextProgress * maxScroll);
+        }
       }
-    },
-    [scrollProgress]
-  );
+    };
 
-  const handleNextStation = () => {
-    soundEngine.playClick(1100);
-    const next = SHOWCASE_STATIONS.find((s) => s.progress > scrollProgress + 0.015);
-    if (next) {
-      scrollToProgress(next.progress);
-    }
-  };
+    gsap.ticker.add(updateFlight);
+    return () => gsap.ticker.remove(updateFlight);
+  }, []);
 
-  const handlePrevStation = () => {
-    soundEngine.playClick(950);
-    const prev = [...SHOWCASE_STATIONS].reverse().find((s) => s.progress < scrollProgress - 0.015);
-    if (prev) {
-      scrollToProgress(prev.progress);
+  const handleVelocityChange = useCallback((intensity: number) => {
+    // If stick is returned to near-center, mark released
+    if (Math.abs(intensity) < 0.1) {
+      releasedSinceLockRef.current = true;
     }
-  };
+
+    // Controlled luxury cruising speed: slower, cinematic pace on mobile screens
+    targetVelocityRef.current = intensity * 0.0008;
+  }, []);
+
+
 
   const currentStation = SHOWCASE_STATIONS.reduce((prev, curr) => {
     return Math.abs(curr.progress - scrollProgress) < Math.abs(prev.progress - scrollProgress)
@@ -419,10 +514,8 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
       {/* 5. Virtual Aerospace Flight Joystick for Touch & Mobile Devices */}
       {isTouchDevice && (
         <TouchJoystick
-          onDrive={handleJoystickDrive}
-          onNextStation={handleNextStation}
-          onPrevStation={handlePrevStation}
-          currentStationName={currentStation.name}
+          onVelocityChange={handleVelocityChange}
+          currentStationName={stationBadgeText || currentStation.name}
         />
       )}
     </div>

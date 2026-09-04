@@ -1,19 +1,15 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ChevronUp, ChevronDown, Compass } from 'lucide-react';
 import gsap from 'gsap';
 import { soundEngine } from '../utils/audio';
 
 interface TouchJoystickProps {
-  onDrive: (velocity: number) => void;
-  onNextStation: () => void;
-  onPrevStation: () => void;
+  onVelocityChange: (velocity: number) => void;
   currentStationName?: string;
 }
 
 export const TouchJoystick: React.FC<TouchJoystickProps> = ({
-  onDrive,
-  onNextStation,
-  onPrevStation,
+  onVelocityChange,
   currentStationName
 }) => {
   const [isActive, setIsActive] = useState(false);
@@ -21,18 +17,8 @@ export const TouchJoystick: React.FC<TouchJoystickProps> = ({
   const baseRef = useRef<HTMLDivElement>(null);
   const knobRef = useRef<HTMLDivElement>(null);
   const centerPos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-  const animFrameId = useRef<number | null>(null);
-  const currentIntensityRef = useRef<number>(0);
 
-  const MAX_RADIUS = 34; // Maximum thumbstick displacement in px
-
-  // Drive loop running at 60/120fps while joystick is held
-  const driveLoop = useCallback(() => {
-    if (Math.abs(currentIntensityRef.current) > 0.01) {
-      onDrive(currentIntensityRef.current);
-    }
-    animFrameId.current = requestAnimationFrame(driveLoop);
-  }, [onDrive]);
+  const MAX_RADIUS = 36; // Maximum thumbstick displacement in px
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -48,11 +34,7 @@ export const TouchJoystick: React.FC<TouchJoystickProps> = ({
     setIsActive(true);
     soundEngine.playClick(900);
 
-    // Start drive loop
-    if (animFrameId.current) cancelAnimationFrame(animFrameId.current);
-    animFrameId.current = requestAnimationFrame(driveLoop);
-
-    // Track move on window so drag doesn't drop outside bounds
+    // Track move on window so drag continues even outside the joystick base
     window.addEventListener('pointermove', handlePointerMove, { passive: false });
     window.addEventListener('pointerup', handlePointerUp, { passive: false });
     window.addEventListener('pointercancel', handlePointerUp, { passive: false });
@@ -75,30 +57,25 @@ export const TouchJoystick: React.FC<TouchJoystickProps> = ({
     }
 
     // Forward is pushing UP (-dy), Reverse is pulling DOWN (+dy)
-    // Non-linear cubic response curve for ultra-precise micro-adjustments
+    // Non-linear cubic response curve: gentle near center, powerful at edges
     const rawY = -knobY / MAX_RADIUS; // -1 to 1
-    const curvedIntensity = Math.sign(rawY) * Math.pow(Math.abs(rawY), 1.25);
+    const curvedIntensity = Math.sign(rawY) * Math.pow(Math.abs(rawY), 1.15);
 
-    currentIntensityRef.current = curvedIntensity;
     setIntensity(curvedIntensity);
+    onVelocityChange(curvedIntensity);
   };
 
   const handlePointerUp = () => {
     setIsActive(false);
-    currentIntensityRef.current = 0;
     setIntensity(0);
-
-    if (animFrameId.current) {
-      cancelAnimationFrame(animFrameId.current);
-      animFrameId.current = null;
-    }
+    onVelocityChange(0);
 
     // Spring knob back to center with luxury GSAP physics
     if (knobRef.current) {
       gsap.to(knobRef.current, {
         x: 0,
         y: 0,
-        duration: 0.4,
+        duration: 0.35,
         ease: 'elastic.out(1, 0.45)',
         overwrite: 'auto'
       });
@@ -111,7 +88,6 @@ export const TouchJoystick: React.FC<TouchJoystickProps> = ({
 
   useEffect(() => {
     return () => {
-      if (animFrameId.current) cancelAnimationFrame(animFrameId.current);
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
       window.removeEventListener('pointercancel', handlePointerUp);
@@ -125,10 +101,10 @@ export const TouchJoystick: React.FC<TouchJoystickProps> = ({
         {/* Forward Throttle Arrow */}
         <div
           className={`flex items-center gap-1 text-[9px] font-mono tracking-widest mb-1 transition-colors ${
-            intensity > 0.1 ? 'text-sun-gold font-bold scale-105' : 'text-titanium/60'
+            intensity > 0.08 ? 'text-sun-gold font-bold scale-105' : 'text-titanium/60'
           }`}
         >
-          <ChevronUp className={`w-3 h-3 ${intensity > 0.1 ? 'animate-bounce' : ''}`} />
+          <ChevronUp className={`w-3 h-3 ${intensity > 0.08 ? 'animate-bounce' : ''}`} />
           <span>FWD</span>
         </div>
 
@@ -136,10 +112,10 @@ export const TouchJoystick: React.FC<TouchJoystickProps> = ({
         <div
           ref={baseRef}
           onPointerDown={handlePointerDown}
-          className={`relative w-[88px] h-[88px] rounded-full flex items-center justify-center cursor-grab active:cursor-grabbing transition-all touch-none ${
+          className={`relative w-[92px] h-[92px] rounded-full flex items-center justify-center cursor-grab active:cursor-grabbing transition-all touch-none select-none ${
             isActive
-              ? 'bg-obsidian/60 border-sun-gold shadow-[0_0_25px_rgba(245,166,35,0.4)] scale-105'
-              : 'bg-white/80 hover:bg-white/95 border-border-subtle hover:border-sun-gold/50 shadow-xl'
+              ? 'bg-obsidian/65 border-sun-gold shadow-[0_0_30px_rgba(245,166,35,0.45)] scale-105'
+              : 'bg-white/85 hover:bg-white/95 border-border-subtle hover:border-sun-gold/50 shadow-xl'
           } backdrop-blur-xl border-2`}
         >
           {/* Subtle Outer Compass Markings */}
@@ -152,9 +128,9 @@ export const TouchJoystick: React.FC<TouchJoystickProps> = ({
           {/* Moveable Thumb Knob */}
           <div
             ref={knobRef}
-            className={`w-11 h-11 rounded-full flex items-center justify-center shadow-lg transition-shadow pointer-events-none ${
+            className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-shadow pointer-events-none ${
               isActive
-                ? 'bg-gradient-to-b from-white to-gray-200 border-2 border-sun-gold shadow-[0_4px_12px_rgba(245,166,35,0.5)]'
+                ? 'bg-gradient-to-b from-white to-gray-200 border-2 border-sun-gold shadow-[0_4px_14px_rgba(245,166,35,0.55)]'
                 : 'bg-gradient-to-b from-white to-alabaster border border-border-subtle shadow-md'
             }`}
           >
@@ -175,37 +151,12 @@ export const TouchJoystick: React.FC<TouchJoystickProps> = ({
         {/* Reverse Throttle Arrow */}
         <div
           className={`flex items-center gap-1 text-[9px] font-mono tracking-widest mt-1 transition-colors ${
-            intensity < -0.1 ? 'text-sun-gold font-bold scale-105' : 'text-titanium/60'
+            intensity < -0.08 ? 'text-sun-gold font-bold scale-105' : 'text-titanium/60'
           }`}
         >
-          <ChevronDown className={`w-3 h-3 ${intensity < -0.1 ? 'animate-bounce' : ''}`} />
+          <ChevronDown className={`w-3 h-3 ${intensity < -0.08 ? 'animate-bounce' : ''}`} />
           <span>REV</span>
         </div>
-      </div>
-
-      {/* Quick Station Step Navigation Buttons */}
-      <div className="flex flex-col gap-1.5 pb-5">
-        <button
-          onClick={() => {
-            soundEngine.playClick(1100);
-            onNextStation();
-          }}
-          title="Next Station"
-          className="w-8 h-8 rounded-full bg-white/90 active:bg-sun-gold active:text-white border border-border-subtle hover:border-sun-gold text-titanium flex items-center justify-center shadow-md backdrop-blur-md transition-all cursor-pointer"
-        >
-          <ChevronUp className="w-4 h-4" />
-        </button>
-
-        <button
-          onClick={() => {
-            soundEngine.playClick(950);
-            onPrevStation();
-          }}
-          title="Previous Station"
-          className="w-8 h-8 rounded-full bg-white/90 active:bg-sun-gold active:text-white border border-border-subtle hover:border-sun-gold text-titanium flex items-center justify-center shadow-md backdrop-blur-md transition-all cursor-pointer"
-        >
-          <ChevronDown className="w-4 h-4" />
-        </button>
       </div>
 
       {/* Current Station Tag Badge */}
