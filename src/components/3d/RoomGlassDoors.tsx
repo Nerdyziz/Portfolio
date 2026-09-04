@@ -1,14 +1,27 @@
-import React from 'react';
+import React, { useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
+import * as THREE from 'three';
 
 interface RoomGlassDoorsProps {
   openProgress: number; // 0 (closed) to 1 (fully open)
+  scrollProgressRef?: React.MutableRefObject<number>;
   position?: [number, number, number];
 }
 
+const getRoomDoorOpenProgress = (scrollProgress: number) => {
+  if (scrollProgress < 0.740) return 0;
+  if (scrollProgress < 0.755) return (scrollProgress - 0.740) / 0.015;
+  return 1;
+};
+
 export const RoomGlassDoors: React.FC<RoomGlassDoorsProps> = ({
   openProgress,
+  scrollProgressRef,
   position = [0, 0, -29.75],
 }) => {
+  const leftDoorRef = useRef<THREE.Group>(null);
+  const rightDoorRef = useRef<THREE.Group>(null);
+
   // Slide displacement: each door slides outward by 2.15 meters into the wall pocket
   const slideOffset = openProgress * 2.15;
 
@@ -17,6 +30,20 @@ export const RoomGlassDoors: React.FC<RoomGlassDoorsProps> = ({
     'ontouchstart' in window ||
     navigator.maxTouchPoints > 0
   );
+
+  useFrame(() => {
+    const liveOpenProgress = scrollProgressRef
+      ? getRoomDoorOpenProgress(scrollProgressRef.current)
+      : openProgress;
+    const liveSlideOffset = liveOpenProgress * 2.15;
+
+    if (leftDoorRef.current) {
+      leftDoorRef.current.position.x = -1.025 - liveSlideOffset;
+    }
+    if (rightDoorRef.current) {
+      rightDoorRef.current.position.x = 1.025 + liveSlideOffset;
+    }
+  });
 
   return (
     <group position={position}>
@@ -59,7 +86,7 @@ export const RoomGlassDoors: React.FC<RoomGlassDoorsProps> = ({
       </group>
 
       {/* 2. LEFT SLIDING GLASS DOOR */}
-      <group position={[-1.025 - slideOffset, 1.47, 0]}>
+      <group ref={leftDoorRef} position={[-1.025 - slideOffset, 1.47, 0]}>
         {/* Glass Pane */}
         <mesh>
           <boxGeometry args={[2.05, 2.88, 0.035]} />
@@ -110,7 +137,7 @@ export const RoomGlassDoors: React.FC<RoomGlassDoorsProps> = ({
       </group>
 
       {/* 3. RIGHT SLIDING GLASS DOOR */}
-      <group position={[1.025 + slideOffset, 1.47, 0]}>
+      <group ref={rightDoorRef} position={[1.025 + slideOffset, 1.47, 0]}>
         {/* Glass Pane */}
         <mesh>
           <boxGeometry args={[2.05, 2.88, 0.035]} />

@@ -1,14 +1,31 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef } from 'react';
 import { useGLTF } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
 interface LaptopRunwayExperienceProps {
   scrollProgress: number; // 0.0 to 1.0 (on 2800vh track)
+  scrollProgressRef?: React.MutableRefObject<number>;
 }
 
-export const LaptopRunwayExperience: React.FC<LaptopRunwayExperienceProps> = ({ scrollProgress }) => {
+export const LaptopRunwayExperience: React.FC<LaptopRunwayExperienceProps> = ({
+  scrollProgress,
+  scrollProgressRef,
+}) => {
   const { scene: planeScene } = useGLTF('/plane.glb', '/draco/');
+  const screenMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
+  const screenLightRef = useRef<THREE.PointLight>(null);
+  const planeGroupRef = useRef<THREE.Group>(null);
+  const engineLightLeftRef = useRef<THREE.PointLight>(null);
+  const engineLightRightRef = useRef<THREE.PointLight>(null);
+
+  const isMobile = useMemo(() => {
+    return typeof window !== 'undefined' && (
+      window.innerWidth < 768 ||
+      'ontouchstart' in window ||
+      navigator.maxTouchPoints > 0
+    );
+  }, []);
 
   // Clone plane model and remove the giant 491m floor plane
   const planeModel = useMemo(() => {
@@ -30,13 +47,8 @@ export const LaptopRunwayExperience: React.FC<LaptopRunwayExperienceProps> = ({ 
   // Top half (y: 0 to 1280): Architect Logbook & Thank You Message
   // Bottom half (y: 1280 to 2560): Aerodrome Runway & Sky
   const canvasTexture = useMemo(() => {
-    const isMobileDevice = typeof window !== 'undefined' && (
-      window.innerWidth < 768 ||
-      'ontouchstart' in window ||
-      navigator.maxTouchPoints > 0
-    );
     const canvas = document.createElement('canvas');
-    const scaleFactor = isMobileDevice ? 0.5 : 1.0;
+    const scaleFactor = isMobile ? 0.5 : 1.0;
     const baseW = 2048;
     const baseH = 2560;
     canvas.width = Math.round(baseW * scaleFactor);
@@ -282,103 +294,89 @@ export const LaptopRunwayExperience: React.FC<LaptopRunwayExperienceProps> = ({ 
     tex.generateMipmaps = true;
     tex.minFilter = THREE.LinearMipmapLinearFilter;
     tex.magFilter = THREE.LinearFilter;
-    tex.anisotropy = isMobileDevice ? 4 : 16;
+    tex.anisotropy = isMobile ? 2 : 16;
     return tex;
-  }, []);
+  }, [isMobile]);
 
   // Update UV offset per frame:
   // scrollProgress <= 0.845: Terminal Message (offset.y = 0.5)
   // scrollProgress 0.845 to 0.875: Text scrolls UP, Runway scrolls UP into place!
   // scrollProgress >= 0.875: Runway active (offset.y = 0.0)
   useFrame(() => {
+    const liveProgress = scrollProgressRef ? scrollProgressRef.current : scrollProgress;
+
     if (!canvasTexture) return;
 
-    if (scrollProgress <= 0.845) {
+    if (liveProgress <= 0.845) {
       canvasTexture.offset.y = 0.5;
-    } else if (scrollProgress >= 0.875) {
+    } else if (liveProgress >= 0.875) {
       canvasTexture.offset.y = 0.0;
     } else {
-      const p = (scrollProgress - 0.845) / (0.875 - 0.845);
+      const p = (liveProgress - 0.845) / (0.875 - 0.845);
       const s = p * p * (3 - 2 * p); // Cubic smoothstep
       canvasTexture.offset.y = THREE.MathUtils.lerp(0.5, 0.0, s);
     }
-  });
 
-  // Screen power smoothly lighting up using GPU color uniform (ZERO CPU redraw)
-  const screenPower = Math.min(1, Math.max(0, (scrollProgress - 0.800) / 0.020));
-  const screenColor = useMemo(() => new THREE.Color(screenPower, screenPower, screenPower), [screenPower]);
-
-  // Jet engine glow intensity (ignites when runway is active and takeoff commences)
-  const engineGlow = useMemo(() => {
-    if (scrollProgress < 0.885) return 0;
-    return Math.min(4, (scrollProgress - 0.885) * 50);
-  }, [scrollProgress]);
-
-  // Airplane World Transform:
-  // Appears ONCE runway has scrolled into place (scrollProgress >= 0.875).
-  // Physically moves UP and forward along the runway centerline into the horizon sky!
-  const planeWorldTransform = useMemo(() => {
-    // Hidden before runway scrolls up
-    if (scrollProgress < 0.875) {
-      return {
-        position: [-0.048, 0.795, -32.865] as [number, number, number],
-        rotation: [0, Math.PI, 0] as [number, number, number],
-        scale: 0,
-      };
+    const screenPower = Math.min(1, Math.max(0, (liveProgress - 0.800) / 0.020));
+    if (screenMaterialRef.current) {
+      screenMaterialRef.current.color.setScalar(screenPower);
+    }
+    if (screenLightRef.current) {
+      screenLightRef.current.intensity = screenPower * 2.5;
     }
 
-    // Phase 1: Sitting on runway threshold, engines spooling up (0.875 to 0.895)
-    if (scrollProgress <= 0.895) {
-      const p = (scrollProgress - 0.875) / (0.895 - 0.875);
+    const engineGlow = liveProgress < 0.885 ? 0 : Math.min(4, (liveProgress - 0.885) * 50);
+    if (engineLightLeftRef.current) engineLightLeftRef.current.intensity = engineGlow;
+    if (engineLightRightRef.current) engineLightRightRef.current.intensity = engineGlow;
+
+    const plane = planeGroupRef.current;
+    if (!plane) return;
+
+    if (liveProgress < 0.875) {
+      plane.position.set(-0.048, 0.795, -32.865);
+      plane.rotation.set(0, Math.PI, 0);
+      plane.scale.setScalar(0);
+      return;
+    }
+
+    if (liveProgress <= 0.895) {
+      const p = (liveProgress - 0.875) / (0.895 - 0.875);
       const scale = THREE.MathUtils.lerp(0.0030, 0.0029, p);
-
-      return {
-        position: [-0.048, 0.795, -32.865] as [number, number, number],
-        rotation: [0, Math.PI, 0] as [number, number, number],
-        scale,
-      };
+      plane.position.set(-0.048, 0.795, -32.865);
+      plane.rotation.set(0, Math.PI, 0);
+      plane.scale.setScalar(scale);
+      return;
     }
 
-    // Phase 2: Full Takeoff Roll & Climb toward Horizon (0.895 to 0.965)
-    // Generous 70vh scroll range! Physically moves FORWARD along runway into the sky!
-    if (scrollProgress <= 0.965) {
-      const p = (scrollProgress - 0.895) / (0.965 - 0.895);
+    if (liveProgress <= 0.965) {
+      const p = (liveProgress - 0.895) / (0.965 - 0.895);
 
-      // Runway roll stage (p < 0.35): accelerates forward along centerline, scaling down
       if (p < 0.35) {
         const rollP = p / 0.35;
         const posY = THREE.MathUtils.lerp(0.795, 0.845, rollP);
         const posZ = THREE.MathUtils.lerp(-32.865, -32.874, rollP);
         const scale = THREE.MathUtils.lerp(0.0029, 0.0018, rollP);
-        return {
-          position: [-0.048, posY, posZ] as [number, number, number],
-          rotation: [0, Math.PI, 0] as [number, number, number],
-          scale,
-        };
+        plane.position.set(-0.048, posY, posZ);
+        plane.rotation.set(0, Math.PI, 0);
+        plane.scale.setScalar(scale);
+        return;
       }
 
-      // Liftoff & Climb stage (0.35 <= p <= 1.0):
-      // Nose pitches up (8°), lifts off, ascends into the golden sky above horizon!
       const climbP = (p - 0.35) / 0.65;
-      const posY = THREE.MathUtils.lerp(0.845, 0.908, climbP); // Ascends into open sky
+      const posY = THREE.MathUtils.lerp(0.845, 0.908, climbP);
       const posZ = THREE.MathUtils.lerp(-32.874, -32.885, climbP);
-      const scale = THREE.MathUtils.lerp(0.0018, 0.0006, climbP); // Scales down towards horizon
-      const pitchUp = THREE.MathUtils.lerp(0, -0.14, Math.min(climbP * 1.5, 1)); // 8° climb attitude
-
-      return {
-        position: [-0.048, posY, posZ] as [number, number, number],
-        rotation: [pitchUp, Math.PI, 0] as [number, number, number],
-        scale,
-      };
+      const scale = THREE.MathUtils.lerp(0.0018, 0.0006, climbP);
+      const pitchUp = THREE.MathUtils.lerp(0, -0.14, Math.min(climbP * 1.5, 1));
+      plane.position.set(-0.048, posY, posZ);
+      plane.rotation.set(pitchUp, Math.PI, 0);
+      plane.scale.setScalar(scale);
+      return;
     }
 
-    // Phase 3: Soaring into the distant sky (0.965 to 1.00)
-    return {
-      position: [-0.048, 0.908, -32.885] as [number, number, number],
-      rotation: [-0.14, Math.PI, 0] as [number, number, number],
-      scale: 0.0005,
-    };
-  }, [scrollProgress]);
+    plane.position.set(-0.048, 0.908, -32.885);
+    plane.rotation.set(-0.14, Math.PI, 0);
+    plane.scale.setScalar(0.0005);
+  });
 
   return (
     <group>
@@ -389,32 +387,41 @@ export const LaptopRunwayExperience: React.FC<LaptopRunwayExperienceProps> = ({ 
       >
         <planeGeometry args={[0.366, 0.220]} />
         <meshBasicMaterial
+          ref={screenMaterialRef}
           map={canvasTexture}
-          color={screenColor}
+          color="#000000"
           toneMapped={false}
         />
       </mesh>
 
       {/* Screen soft light: PERMANENTLY MOUNTED (Intensity modulated to prevent hitching) */}
-      <pointLight
-        position={[-0.048, 0.8625, -32.83]}
-        color="#BAE6FD"
-        intensity={screenPower * 2.5}
-        distance={1.5}
-        decay={2}
-      />
+      {!isMobile && (
+        <pointLight
+          ref={screenLightRef}
+          position={[-0.048, 0.8625, -32.83]}
+          color="#BAE6FD"
+          intensity={0}
+          distance={1.5}
+          decay={2}
+        />
+      )}
 
       {/* 2. THE 3D AIRPLANE (plane.glb) STRAIGHT ON RUNWAY CENTERLINE: PERMANENTLY MOUNTED */}
       <group
-        position={planeWorldTransform.position}
-        rotation={planeWorldTransform.rotation}
-        scale={[planeWorldTransform.scale, planeWorldTransform.scale, planeWorldTransform.scale]}
+        ref={planeGroupRef}
+        position={[-0.048, 0.795, -32.865]}
+        rotation={[0, Math.PI, 0]}
+        scale={0}
       >
         <primitive object={planeModel} />
 
         {/* Jet Engine Glow Lights: PERMANENTLY MOUNTED (Ignites when takeoff commences) */}
-        <pointLight position={[-7.5, 2.0, -10.0]} color="#38BDF8" intensity={engineGlow} distance={8} />
-        <pointLight position={[7.5, 2.0, -10.0]} color="#38BDF8" intensity={engineGlow} distance={8} />
+        {!isMobile && (
+          <>
+            <pointLight ref={engineLightLeftRef} position={[-7.5, 2.0, -10.0]} color="#38BDF8" intensity={0} distance={8} />
+            <pointLight ref={engineLightRightRef} position={[7.5, 2.0, -10.0]} color="#38BDF8" intensity={0} distance={8} />
+          </>
+        )}
       </group>
     </group>
   );

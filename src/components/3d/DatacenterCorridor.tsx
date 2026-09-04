@@ -23,6 +23,26 @@ const iconMap: Record<string, React.ReactNode> = {
   Cpu: <Cpu className="w-4 h-4 text-sun-gold" />
 };
 
+type DoorRange = {
+  openStart: number;
+  openEnd: number;
+  holdEnd: number;
+  closeEnd: number;
+  maxAngle: number;
+};
+
+const getDoorAngle = (progress: number, range: DoorRange) => {
+  if (progress < range.openStart) return 0;
+  if (progress < range.openEnd) {
+    return ((progress - range.openStart) / (range.openEnd - range.openStart)) * range.maxAngle;
+  }
+  if (progress <= range.holdEnd) return range.maxAngle;
+  if (progress <= range.closeEnd) {
+    return (1 - (progress - range.holdEnd) / (range.closeEnd - range.holdEnd)) * range.maxAngle;
+  }
+  return 0;
+};
+
 // Single animated rack with a hinged glass door and an embedded Silicon Substrate card
 function RackWithDoor({
   position,
@@ -32,6 +52,9 @@ function RackWithDoor({
   cardOpacity = 0,
   skillData,
   isLeft = false,
+  isMobile = false,
+  scrollProgressRef,
+  doorRange,
   children
 }: {
   position: [number, number, number];
@@ -41,13 +64,19 @@ function RackWithDoor({
   cardOpacity?: number;
   skillData?: SkillCategory;
   isLeft?: boolean;
+  isMobile?: boolean;
+  scrollProgressRef?: React.MutableRefObject<number>;
+  doorRange?: DoorRange;
   children?: React.ReactNode;
 }) {
   const hingeRef = useRef<THREE.Group>(null);
 
   useFrame(() => {
     if (hingeRef.current) {
-      const targetAngle = isLeft ? -doorAngle : doorAngle;
+      const liveDoorAngle = scrollProgressRef && doorRange
+        ? getDoorAngle(scrollProgressRef.current, doorRange)
+        : doorAngle;
+      const targetAngle = isLeft ? -liveDoorAngle : liveDoorAngle;
       hingeRef.current.rotation.y = THREE.MathUtils.lerp(
         hingeRef.current.rotation.y,
         targetAngle,
@@ -110,7 +139,7 @@ function RackWithDoor({
           </mesh>
 
           {/* SILICON SUBSTRATE CARD EMBEDDED ON 3D GLASS DOOR */}
-          {skillData && cardOpacity > 0.01 && (
+          {!isMobile && skillData && cardOpacity > 0.01 && (
             <Html
               transform
               position={[isLeft ? 0.05 : -0.05, 0, 0.03]}
@@ -193,7 +222,8 @@ function RackWithDoor({
 }
 
 export const DatacenterCorridor: React.FC<DatacenterCorridorProps> = ({
-  scrollProgress
+  scrollProgress,
+  scrollProgressRef
 }) => {
   // Mobile detection for lighting and draw-call optimization
   const isMobile = useMemo(() => {
@@ -231,6 +261,25 @@ export const DatacenterCorridor: React.FC<DatacenterCorridorProps> = ({
     });
     return clone;
   }, [motherBoardGLTF.scene]);
+
+  const facilityStageRef = useRef<THREE.Group>(null);
+  const roomStageRef = useRef<THREE.Group>(null);
+  const laptopStageRef = useRef<THREE.Group>(null);
+
+  useFrame(() => {
+    if (!isMobile) return;
+    const progress = scrollProgressRef ? scrollProgressRef.current : scrollProgress;
+
+    if (facilityStageRef.current) {
+      facilityStageRef.current.visible = progress >= 0.12 && progress < 0.77;
+    }
+    if (roomStageRef.current) {
+      roomStageRef.current.visible = progress >= 0.68;
+    }
+    if (laptopStageRef.current) {
+      laptopStageRef.current.visible = progress >= 0.76;
+    }
+  });
 
   // =========================================================================
   // 1. AIRLOCK DOUBLE GATE TIMING (Z = 12.5)
@@ -369,159 +418,183 @@ export const DatacenterCorridor: React.FC<DatacenterCorridorProps> = ({
 
   return (
     <group position={[0, 0, 0]}>
-      {/* 1. 2-WAY DOUBLE AIRLOCK ENTRANCE GATE AT Z = 12.5 */}
-      <AirlockGate gateOpenProgress={gateOpenProgress} />
+      <group ref={facilityStageRef}>
+        {/* 1. 2-WAY DOUBLE AIRLOCK ENTRANCE GATE AT Z = 12.5 */}
+        <AirlockGate gateOpenProgress={gateOpenProgress} scrollProgressRef={scrollProgressRef} />
 
-      {/* 2. CORRIDOR ARCHITECTURAL STRUCTURE */}
-      {/* Solid Architectural Facility Roof (Confined strictly to interior Z <= 12.5) */}
-      <mesh position={[0, 4.25, -8.75]}>
-        <boxGeometry args={[9.3, 0.2, 42.5]} />
-        <meshStandardMaterial color="#E2E8F0" roughness={0.4} metalness={0.3} />
-      </mesh>
+        {/* 2. CORRIDOR ARCHITECTURAL STRUCTURE */}
+        {/* Solid Architectural Facility Roof (Confined strictly to interior Z <= 12.5) */}
+        <mesh position={[0, 4.25, -8.75]}>
+          <boxGeometry args={[9.3, 0.2, 42.5]} />
+          <meshStandardMaterial color="#E2E8F0" roughness={0.4} metalness={0.3} />
+        </mesh>
 
-      {/* Interior Left Cleanroom Wall */}
-      <mesh position={[-4.5, 2.1, -8.75]}>
-        <boxGeometry args={[0.3, 4.2, 42.5]} />
-        <meshStandardMaterial color="#E8ECEF" roughness={0.5} />
-      </mesh>
+        {/* Interior Left Cleanroom Wall */}
+        <mesh position={[-4.5, 2.1, -8.75]}>
+          <boxGeometry args={[0.3, 4.2, 42.5]} />
+          <meshStandardMaterial color="#E8ECEF" roughness={0.5} />
+        </mesh>
 
-      {/* Interior Right Cleanroom Wall */}
-      <mesh position={[4.5, 2.1, -8.75]}>
-        <boxGeometry args={[0.3, 4.2, 42.5]} />
-        <meshStandardMaterial color="#E8ECEF" roughness={0.5} />
-      </mesh>
+        {/* Interior Right Cleanroom Wall */}
+        <mesh position={[4.5, 2.1, -8.75]}>
+          <boxGeometry args={[0.3, 4.2, 42.5]} />
+          <meshStandardMaterial color="#E8ECEF" roughness={0.5} />
+        </mesh>
 
-      {/* Cleanroom Floor (Confined strictly to interior Z <= 12.5) */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, -8.75]} receiveShadow>
-        <planeGeometry args={[9, 42.5]} />
-        <meshStandardMaterial
-          color="#F5F5F7"
-          roughness={0.16}
-          metalness={0.08}
+        {/* Cleanroom Floor (Confined strictly to interior Z <= 12.5) */}
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, -8.75]} receiveShadow>
+          <planeGeometry args={[9, 42.5]} />
+          <meshStandardMaterial
+            color="#F5F5F7"
+            roughness={0.16}
+            metalness={0.08}
+          />
+        </mesh>
+
+        {/* Overhead architectural linear LED skylight panels inside the corridor */}
+        {[-24, -16, -8, 0, 8].map((z, idx) => {
+          const hasPointLight = !isMobile;
+          return (
+            <group key={idx} position={[0, 4.18, z]}>
+              <mesh>
+                <boxGeometry args={[1.8, 0.02, 4.5]} />
+                <meshBasicMaterial color="#FFFFFF" />
+              </mesh>
+              {hasPointLight && (
+                <pointLight
+                  color="#FFFFFF"
+                  intensity={0.9}
+                  distance={8}
+                  decay={2}
+                />
+              )}
+            </group>
+          );
+        })}
+
+        {/* ARCHITECTURAL END-CAP WALLS AT Z = -29.8 */}
+        <group position={[0, 0, -29.8]}>
+          {/* Left end-cap corridor wall */}
+          <mesh position={[-3.35, 2.1, 0]}>
+            <boxGeometry args={[2.3, 4.2, 0.2]} />
+            <meshStandardMaterial color="#E8ECEF" roughness={0.5} />
+          </mesh>
+          {/* Right end-cap corridor wall */}
+          <mesh position={[3.35, 2.1, 0]}>
+            <boxGeometry args={[2.3, 4.2, 0.2]} />
+            <meshStandardMaterial color="#E8ECEF" roughness={0.5} />
+          </mesh>
+        </group>
+
+        {/* 3. RACKS 1 TO 3 */}
+        {/* ROW 1 (z = 6.0): RACK 1 ON RIGHT -> SILICON SUBSTRATE CARD 1 (DISTRIBUTED ARCH) */}
+        <RackWithDoor
+          position={[2.4, 0, 6]}
+          rotation={[0, -Math.PI / 2, 0]}
+          rackTemplate={rackR1}
+          doorAngle={door1Angle}
+          doorRange={{ openStart: 0.31, openEnd: 0.33, holdEnd: 0.37, closeEnd: 0.39, maxAngle: Math.PI * 0.44 }}
+          cardOpacity={card1Opacity}
+          skillData={skillCategories[0]} // DISTRIBUTED ARCH
+          isLeft={false}
+          isMobile={isMobile}
+          scrollProgressRef={scrollProgressRef}
         />
-      </mesh>
+        <group position={[-2.4, 0, 6]} rotation={[0, Math.PI / 2, 0]}>
+          <primitive object={staticL1} />
+        </group>
 
-      {/* Overhead architectural linear LED skylight panels inside the corridor */}
-      {[-24, -16, -8, 0, 8].map((z, idx) => {
-        const hasPointLight = !isMobile || idx % 2 === 0;
-        return (
-          <group key={idx} position={[0, 4.18, z]}>
-            <mesh>
-              <boxGeometry args={[1.8, 0.02, 4.5]} />
-              <meshBasicMaterial color="#FFFFFF" />
-            </mesh>
-            {hasPointLight && (
+        {/* ROW 2 (z = 1.0): RACK 2 ON LEFT -> SILICON SUBSTRATE CARD 2 (MACHINE LEARNING) */}
+        <RackWithDoor
+          position={[-2.4, 0, 1]}
+          rotation={[0, Math.PI / 2, 0]}
+          rackTemplate={rackL2}
+          doorAngle={door2Angle}
+          doorRange={{ openStart: 0.41, openEnd: 0.43, holdEnd: 0.47, closeEnd: 0.49, maxAngle: Math.PI * 0.44 }}
+          cardOpacity={card2Opacity}
+          skillData={skillCategories[1]} // MACHINE LEARNING
+          isLeft={true}
+          isMobile={isMobile}
+          scrollProgressRef={scrollProgressRef}
+        />
+        <group position={[2.4, 0, 1]} rotation={[0, -Math.PI / 2, 0]}>
+          <primitive object={staticR2} />
+        </group>
+
+        {/* ROW 3 (z = -4.0): RACK 3 ON RIGHT -> SILICON SUBSTRATE CARD 3 (SYSTEMS / HARDWARE) */}
+        <RackWithDoor
+          position={[2.4, 0, -4]}
+          rotation={[0, -Math.PI / 2, 0]}
+          rackTemplate={rackR3}
+          doorAngle={door3Angle}
+          doorRange={{ openStart: 0.51, openEnd: 0.53, holdEnd: 0.57, closeEnd: 0.59, maxAngle: Math.PI * 0.44 }}
+          cardOpacity={card3Opacity}
+          skillData={skillCategories[2]} // SYSTEMS / HARDWARE
+          isLeft={false}
+          isMobile={isMobile}
+          scrollProgressRef={scrollProgressRef}
+        />
+        <group position={[-2.4, 0, -4]} rotation={[0, Math.PI / 2, 0]}>
+          <primitive object={staticL3} />
+        </group>
+
+        {/* 4. ROW 4 (z = -9.0): FINAL MASTER RACK 4 ON LEFT & MOTHERBOARD */}
+        <RackWithDoor
+          position={[-2.4, 0, -9]}
+          rotation={[0, Math.PI / 2, 0]}
+          rackTemplate={rackL4}
+          doorAngle={door4Angle}
+          doorRange={{ openStart: 0.60, openEnd: 0.62, holdEnd: 0.70, closeEnd: 0.71, maxAngle: Math.PI * 0.55 }}
+          isLeft={true}
+          isMobile={isMobile}
+          scrollProgressRef={scrollProgressRef}
+        >
+          {/* MotherBoard.glb placed strictly inside the datacenter deck chassis shelf */}
+          <group position={[0, 1.25, 0]}>
+            <group scale={[0.065, 0.065, 0.065]}>
+              <primitive object={motherBoardModel} />
+            </group>
+
+            {/* Clean Neutral Studio Lighting directly over Motherboard (PURE RED CHIP) */}
+            {!isMobile && (
               <pointLight
+                position={[0, 0.6, 0]}
                 color="#FFFFFF"
-                intensity={isMobile ? 1.2 : 0.9}
-                distance={isMobile ? 10 : 8}
+                intensity={4.5}
+                distance={3.5}
                 decay={2}
               />
             )}
+            {!isMobile && (
+              <directionalLight
+                position={[0.5, 2.0, 0.5]}
+                color="#FFFFFF"
+                intensity={2.5}
+              />
+            )}
           </group>
-        );
-      })}
-
-      {/* ARCHITECTURAL END-CAP WALLS AT Z = -29.8 */}
-      <group position={[0, 0, -29.8]}>
-        {/* Left end-cap corridor wall */}
-        <mesh position={[-3.35, 2.1, 0]}>
-          <boxGeometry args={[2.3, 4.2, 0.2]} />
-          <meshStandardMaterial color="#E8ECEF" roughness={0.5} />
-        </mesh>
-        {/* Right end-cap corridor wall */}
-        <mesh position={[3.35, 2.1, 0]}>
-          <boxGeometry args={[2.3, 4.2, 0.2]} />
-          <meshStandardMaterial color="#E8ECEF" roughness={0.5} />
-        </mesh>
-      </group>
-
-      {/* 3. RACKS 1 TO 3 */}
-      {/* ROW 1 (z = 6.0): RACK 1 ON RIGHT -> SILICON SUBSTRATE CARD 1 (DISTRIBUTED ARCH) */}
-      <RackWithDoor
-        position={[2.4, 0, 6]}
-        rotation={[0, -Math.PI / 2, 0]}
-        rackTemplate={rackR1}
-        doorAngle={door1Angle}
-        cardOpacity={card1Opacity}
-        skillData={skillCategories[0]} // DISTRIBUTED ARCH
-        isLeft={false}
-      />
-      <group position={[-2.4, 0, 6]} rotation={[0, Math.PI / 2, 0]}>
-        <primitive object={staticL1} />
-      </group>
-
-      {/* ROW 2 (z = 1.0): RACK 2 ON LEFT -> SILICON SUBSTRATE CARD 2 (MACHINE LEARNING) */}
-      <RackWithDoor
-        position={[-2.4, 0, 1]}
-        rotation={[0, Math.PI / 2, 0]}
-        rackTemplate={rackL2}
-        doorAngle={door2Angle}
-        cardOpacity={card2Opacity}
-        skillData={skillCategories[1]} // MACHINE LEARNING
-        isLeft={true}
-      />
-      <group position={[2.4, 0, 1]} rotation={[0, -Math.PI / 2, 0]}>
-        <primitive object={staticR2} />
-      </group>
-
-      {/* ROW 3 (z = -4.0): RACK 3 ON RIGHT -> SILICON SUBSTRATE CARD 3 (SYSTEMS / HARDWARE) */}
-      <RackWithDoor
-        position={[2.4, 0, -4]}
-        rotation={[0, -Math.PI / 2, 0]}
-        rackTemplate={rackR3}
-        doorAngle={door3Angle}
-        cardOpacity={card3Opacity}
-        skillData={skillCategories[2]} // SYSTEMS / HARDWARE
-        isLeft={false}
-      />
-      <group position={[-2.4, 0, -4]} rotation={[0, Math.PI / 2, 0]}>
-        <primitive object={staticL3} />
-      </group>
-
-      {/* 4. ROW 4 (z = -9.0): FINAL MASTER RACK 4 ON LEFT & MOTHERBOARD */}
-      <RackWithDoor
-        position={[-2.4, 0, -9]}
-        rotation={[0, Math.PI / 2, 0]}
-        rackTemplate={rackL4}
-        doorAngle={door4Angle}
-        isLeft={true}
-      >
-        {/* MotherBoard.glb placed strictly inside the datacenter deck chassis shelf */}
-        <group position={[0, 1.25, 0]}>
-          <group scale={[0.065, 0.065, 0.065]}>
-            <primitive object={motherBoardModel} />
-          </group>
-
-          {/* Clean Neutral Studio Lighting directly over Motherboard (PURE RED CHIP) */}
-          {!isMobile && (
-            <pointLight
-              position={[0, 0.6, 0]}
-              color="#FFFFFF"
-              intensity={4.5}
-              distance={3.5}
-              decay={2}
-            />
-          )}
-          <directionalLight
-            position={[0.5, 2.0, 0.5]}
-            color="#FFFFFF"
-            intensity={isMobile ? 3.5 : 2.5}
-          />
+        </RackWithDoor>
+        <group position={[2.4, 0, -9]} rotation={[0, -Math.PI / 2, 0]}>
+          <primitive object={staticR4} />
         </group>
-      </RackWithDoor>
-      <group position={[2.4, 0, -9]} rotation={[0, -Math.PI / 2, 0]}>
-        <primitive object={staticR4} />
       </group>
 
-      {/* 5. SLIDING DOUBLE GLASS DOORS & INTEGRATED PORTAL AT Z = -29.75 */}
-      <RoomGlassDoors openProgress={roomGlassDoorOpenProgress} position={[0, 0, -29.75]} />
+      <group ref={roomStageRef}>
+        {/* 5. SLIDING DOUBLE GLASS DOORS & INTEGRATED PORTAL AT Z = -29.75 */}
+        <RoomGlassDoors
+          openProgress={roomGlassDoorOpenProgress}
+          scrollProgressRef={scrollProgressRef}
+          position={[0, 0, -29.75]}
+        />
 
-      {/* 6. THE MODERN ARCHITECT ROOM 2 (room2.glb) */}
-      <LoungeRoom position={[0, 1.465, -33.13]} />
+        {/* 6. THE MODERN ARCHITECT ROOM 2 (room2.glb) */}
+        <LoungeRoom position={[0, 1.465, -33.13]} />
+      </group>
 
-      {/* 7. LAPTOP RUNWAY & AIRPLANE TAKEOFF EXPERIENCE */}
-      <LaptopRunwayExperience scrollProgress={scrollProgress} />
+      <group ref={laptopStageRef}>
+        {/* 7. LAPTOP RUNWAY & AIRPLANE TAKEOFF EXPERIENCE */}
+        <LaptopRunwayExperience scrollProgress={scrollProgress} scrollProgressRef={scrollProgressRef} />
+      </group>
     </group>
   );
 };

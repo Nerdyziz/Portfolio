@@ -59,6 +59,27 @@ function SceneWarmer({ onWarmed }: { onWarmed?: () => void }) {
   return null;
 }
 
+function MobileClearColor({
+  enabled,
+  scrollProgress,
+  scrollProgressRef,
+}: {
+  enabled: boolean;
+  scrollProgress: number;
+  scrollProgressRef?: React.MutableRefObject<number>;
+}) {
+  const skyColor = useRef(new THREE.Color('#9BC4E6'));
+  const interiorColor = useRef(new THREE.Color('#F8F6F8'));
+
+  useFrame(({ gl }) => {
+    if (!enabled) return;
+    const progress = scrollProgressRef ? scrollProgressRef.current : scrollProgress;
+    gl.setClearColor(progress < 0.25 || progress > 0.96 ? skyColor.current : interiorColor.current, 1);
+  });
+
+  return null;
+}
+
 // Static reusable vectors to eliminate per-frame heap allocations & GC pressure
 const _tempTargetPos = new THREE.Vector3();
 const _tempTargetLookAt = new THREE.Vector3();
@@ -346,7 +367,7 @@ export const World3DCanvas: React.FC<World3DCanvasProps> = ({
     navigator.maxTouchPoints > 0
   );
 
-  const stableDpr = isMobile ? 1.0 : Math.min(typeof window !== 'undefined' ? window.devicePixelRatio : 1, 1.75);
+  const stableDpr = isMobile ? 0.75 : Math.min(typeof window !== 'undefined' ? window.devicePixelRatio : 1, 1.75);
 
   return (
     <div
@@ -357,14 +378,16 @@ export const World3DCanvas: React.FC<World3DCanvasProps> = ({
         camera={{ position: [0, 38, 42], fov: 48 }}
         gl={{
           antialias: !isMobile,
-          alpha: true,
+          alpha: !isMobile,
           powerPreference: 'high-performance',
           stencil: false,
           depth: true,
-          localClippingEnabled: true
+          localClippingEnabled: false
         }}
         dpr={stableDpr}
       >
+        <MobileClearColor enabled={isMobile} scrollProgress={scrollProgress} scrollProgressRef={scrollProgressRef} />
+
         {/* Clean Neutral Studio Lighting (NO YELLOW/GOLD TINT OVER CHIP) */}
         <ambientLight intensity={1.2} color="#FFFFFF" />
         <directionalLight

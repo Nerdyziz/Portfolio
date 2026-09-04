@@ -19,6 +19,8 @@ const SHOWCASE_STATIONS = [
   { id: 'core', progress: 0.660, name: '05. NEURAL CORE // RED SILICON' },
 ];
 
+const DOM_STATE_UPDATE_INTERVAL_MS = 50;
+
 interface ScrollytellingContainerProps {
   onInspectProject: (project: Project) => void;
   onCvClick: () => void;
@@ -45,7 +47,7 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
   const releasedSinceLockRef = useRef<boolean>(true);
   const [stationBadgeText, setStationBadgeText] = useState<string | null>(null);
 
-  // Decouple 60 FPS Three.js rendering from React DOM tree state updates (~40 FPS responsive cap)
+  // Decouple 60 FPS Three.js rendering from React DOM tree updates.
   const lastStateUpdateTimeRef = useRef(0);
   const pendingUpdateTimeoutRef = useRef<number | null>(null);
 
@@ -53,7 +55,7 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
     scrollProgressRef.current = newProgress;
     const now = performance.now();
 
-    if (immediate || now - lastStateUpdateTimeRef.current >= 24) { // ~40 FPS responsive cap for React DOM tree
+    if (immediate || now - lastStateUpdateTimeRef.current >= DOM_STATE_UPDATE_INTERVAL_MS) {
       lastStateUpdateTimeRef.current = now;
       if (pendingUpdateTimeoutRef.current !== null) {
         window.clearTimeout(pendingUpdateTimeoutRef.current);
@@ -65,7 +67,7 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
         lastStateUpdateTimeRef.current = performance.now();
         pendingUpdateTimeoutRef.current = null;
         setScrollProgress(scrollProgressRef.current);
-      }, 25);
+      }, DOM_STATE_UPDATE_INTERVAL_MS);
     }
   }, []);
 
@@ -547,7 +549,7 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
           visibility: portalOpacity > 0.001 ? 'visible' : 'hidden',
           background:
             'radial-gradient(circle at center, rgba(255,255,255,0.98) 0%, rgba(224,242,254,0.95) 55%, rgba(186,230,253,0.90) 100%)',
-          backdropFilter: 'blur(16px)',
+          backdropFilter: isTouchDevice ? 'none' : 'blur(16px)',
         }}
       />
 

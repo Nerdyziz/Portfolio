@@ -4,17 +4,28 @@ import * as THREE from 'three';
 
 interface AirlockGateProps {
   gateOpenProgress: number; // 0.0 (sealed closed) to 1.0 (fully parted open)
+  scrollProgressRef?: React.MutableRefObject<number>;
 }
 
-export const AirlockGate: React.FC<AirlockGateProps> = ({ gateOpenProgress }) => {
+const getGateOpenProgress = (scrollProgress: number) => {
+  if (scrollProgress < 0.25) return 0;
+  if (scrollProgress < 0.30) return (scrollProgress - 0.25) / 0.05;
+  return 1;
+};
+
+export const AirlockGate: React.FC<AirlockGateProps> = ({ gateOpenProgress, scrollProgressRef }) => {
   const leftDoorRef = useRef<THREE.Group>(null);
   const rightDoorRef = useRef<THREE.Group>(null);
 
   useFrame(() => {
+    const liveGateOpenProgress = scrollProgressRef
+      ? getGateOpenProgress(scrollProgressRef.current)
+      : gateOpenProgress;
+
     // Left door glides from X = -0.62 to X = -2.6 (slides completely clear into bulkhead)
-    const targetLeftX = THREE.MathUtils.lerp(-0.62, -2.6, gateOpenProgress);
+    const targetLeftX = THREE.MathUtils.lerp(-0.62, -2.6, liveGateOpenProgress);
     // Right door glides from X = +0.62 to X = +2.6 (slides completely clear into bulkhead)
-    const targetRightX = THREE.MathUtils.lerp(0.62, 2.6, gateOpenProgress);
+    const targetRightX = THREE.MathUtils.lerp(0.62, 2.6, liveGateOpenProgress);
 
     if (leftDoorRef.current) {
       leftDoorRef.current.position.x = THREE.MathUtils.lerp(
