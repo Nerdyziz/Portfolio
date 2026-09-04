@@ -10,7 +10,7 @@ export const LoungeRoom: React.FC<LoungeRoomProps> = ({
   position = [0, 1.465, -33.13],
   rotation = [0, 0, 0],
 }) => {
-  const { scene } = useGLTF('/room2.glb');
+  const { scene } = useGLTF('/room2.glb', '/draco/');
 
   const clonedScene = useMemo(() => {
     return scene.clone(true);
@@ -18,10 +18,10 @@ export const LoungeRoom: React.FC<LoungeRoomProps> = ({
 
   return (
     <group position={position} rotation={rotation}>
-      {/* 3D Room 2 Model - Untouched native materials and textures */}
+      {/* 3D Room 2 Model - Draco compressed 1.6MB with WebP textures */}
       <primitive object={clonedScene} />
     </group>
   );
 };
 
-useGLTF.preload('/room2.glb');
+useGLTF.preload('/room2.glb', '/draco/');

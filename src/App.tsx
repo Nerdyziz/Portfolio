@@ -16,6 +16,7 @@ gsap.registerPlugin(ScrollTrigger);
 
 export function App() {
   const [isLoading, setIsLoading] = useState(true);
+  const [isSceneWarmed, setIsSceneWarmed] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isContactOpen, setIsContactOpen] = useState(false);
   const [copiedEmail, setCopiedEmail] = useState(false);
@@ -104,12 +105,21 @@ export function App() {
     }
   }, [isLoading]);
 
-  // Always reset scroll to top on page load / reload
+  // Always reset scroll to top on page load / reload and enforce on beforeunload
   useEffect(() => {
     if ('scrollRestoration' in history) {
       history.scrollRestoration = 'manual';
     }
     window.scrollTo(0, 0);
+
+    const handleBeforeUnload = () => {
+      window.scrollTo(0, 0);
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
   }, []);
 
   useEffect(() => {
@@ -131,9 +141,12 @@ export function App() {
 
   return (
     <div className="min-h-screen bg-alabaster text-obsidian selection:bg-sun-gold selection:text-white font-sans antialiased relative">
-      {/* Flight Preloader Overlay (Blocks all interactions until 100% loaded) */}
+      {/* Flight Preloader Overlay (Blocks all interactions until 100% loaded & warmed) */}
       {isLoading && (
-        <Preloader onComplete={() => setIsLoading(false)} />
+        <Preloader
+          isSceneWarmed={isSceneWarmed}
+          onComplete={() => setIsLoading(false)}
+        />
       )}
 
       {/* Fixed Floating Navigation Pill */}
@@ -143,6 +156,7 @@ export function App() {
       <ScrollytellingContainer
         onInspectProject={(proj) => setSelectedProject(proj)}
         onCvClick={() => setIsContactOpen(true)}
+        onWarmed={() => setIsSceneWarmed(true)}
       />
 
       {/* Blueprint Deep Inspection Drawer Modal */}

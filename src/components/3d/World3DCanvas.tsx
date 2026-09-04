@@ -1,6 +1,5 @@
 import React, { useRef, Suspense } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { AdaptiveDpr, AdaptiveEvents } from '@react-three/drei';
 import * as THREE from 'three';
 import { CloudsStage } from './CloudsStage';
 import { DatacenterCorridor } from './DatacenterCorridor';
@@ -9,10 +8,11 @@ import { Project } from '../../types';
 interface World3DCanvasProps {
   scrollProgress: number; // 0.0 to 1.0
   onInspectProject: (project: Project) => void;
+  onWarmed?: () => void;
 }
 
-// SceneWarmer: Forces the GPU to pre-compile all materials and shaders immediately on mount
-function SceneWarmer() {
+// SceneWarmer: Pre-compiles all materials and shaders across ALL sectors before preloader completes
+function SceneWarmer({ onWarmed }: { onWarmed?: () => void }) {
   const { gl, scene, camera } = useThree();
   const warmedRef = useRef(false);
 
@@ -23,21 +23,34 @@ function SceneWarmer() {
         if ((obj as THREE.Mesh).isMesh) meshCount++;
       });
 
-      // Once GLTF models are mounted in the scene graph during preloading
-      if (meshCount > 10) {
-        // 1. Compile & warm sky altitude view
+      // Once all GLTF models (racks, motherboard, room, plane) are mounted in the scene graph
+      if (meshCount > 15) {
+        // 1. Compile stratosphere & clouds view
         gl.compile(scene, camera);
-        gl.render(scene, camera);
 
-        // 2. Pre-compile interior datacenter & server rack shaders before user scrolls
+        // 2. Pre-compile interior datacenter & server rack shaders
         const interiorCam = camera.clone() as THREE.PerspectiveCamera;
-        interiorCam.position.set(0, 1.35, 8);
+        interiorCam.position.set(0, 1.35, 6);
         interiorCam.lookAt(0, 1.35, -20);
         interiorCam.updateMatrixWorld();
         gl.compile(scene, interiorCam);
-        gl.render(scene, interiorCam);
+
+        // 3. Pre-compile Rack 4 Motherboard & Red Core chip shaders
+        const chipCam = camera.clone() as THREE.PerspectiveCamera;
+        chipCam.position.set(-1.8, 1.35, -9);
+        chipCam.lookAt(-2.4, 1.25, -9);
+        chipCam.updateMatrixWorld();
+        gl.compile(scene, chipCam);
+
+        // 4. Pre-compile Lounge Room & Runway Experience shaders
+        const roomCam = camera.clone() as THREE.PerspectiveCamera;
+        roomCam.position.set(0, 1.35, -30);
+        roomCam.lookAt(0, 1.35, -33.5);
+        roomCam.updateMatrixWorld();
+        gl.compile(scene, roomCam);
 
         warmedRef.current = true;
+        onWarmed?.();
       }
     }
   });
@@ -294,10 +307,10 @@ function CameraRig({ scrollProgress }: { scrollProgress: number }) {
 
   return null;
 }
-
 export const World3DCanvas: React.FC<World3DCanvasProps> = ({
   scrollProgress,
-  onInspectProject
+  onInspectProject,
+  onWarmed,
 }) => {
   // Celestial sky in clouds, transitions to clean architectural white in datacenter
   const skyBackground =
@@ -309,14 +322,17 @@ export const World3DCanvas: React.FC<World3DCanvasProps> = ({
       ? 'linear-gradient(180deg, #6B9FD4 0%, #9BC4E6 35%, #FDE4BD 70%, #F8F6F8 100%)'
       : '#F8F6F8';
 
-  // Hardware-aware dynamic DPR calibration:
-  // Mobile touchscreens (physical DPR 3.0) cap to 1.5 to eliminate 50%+ fillrate heat & battery drain
-  // Desktop renders up to 2.0 for ultra-crisp display
+  // Fixed, rock-solid DPR calibration:
+  // Mobile: 1.0 (crisp on high-PPI screens without any buffer resize lag)
+  // Desktop: up to 1.75
+  // NEVER resizes mid-scroll, completely eliminating scroll stutter!
   const isMobile = typeof window !== 'undefined' && (
     window.innerWidth < 768 ||
     'ontouchstart' in window ||
     navigator.maxTouchPoints > 0
   );
+
+  const stableDpr = isMobile ? 1.0 : Math.min(typeof window !== 'undefined' ? window.devicePixelRatio : 1, 1.75);
 
   return (
     <div
@@ -333,20 +349,15 @@ export const World3DCanvas: React.FC<World3DCanvasProps> = ({
           depth: true,
           localClippingEnabled: true
         }}
-        dpr={isMobile ? [1, 1.5] : [1, 2]}
+        dpr={stableDpr}
       >
-        {/* Industry-Standard Adaptive Scaling: Dynamically throttles DPR if framerate dips */}
-        <AdaptiveDpr pixelated={false} />
-        {/* Temporarily de-prioritizes pointer raycasting during rapid scroll/joystick movement */}
-        <AdaptiveEvents />
-
         {/* Clean Neutral Studio Lighting (NO YELLOW/GOLD TINT OVER CHIP) */}
         <ambientLight intensity={1.2} color="#FFFFFF" />
         <directionalLight
           position={[25, 35, 30]}
           intensity={1.8}
           color="#FFFFFF"
-          castShadow
+          castShadow={!isMobile}
         />
         <directionalLight
           position={[-15, 20, -15]}
@@ -355,7 +366,7 @@ export const World3DCanvas: React.FC<World3DCanvasProps> = ({
         />
 
         {/* Pre-compile all shaders and models into GPU memory during preloader */}
-        <SceneWarmer />
+        <SceneWarmer onWarmed={onWarmed} />
 
         {/* Suspense wrapper for models */}
         <Suspense fallback={null}>

@@ -203,9 +203,9 @@ export const DatacenterCorridor: React.FC<DatacenterCorridorProps> = ({
     );
   }, []);
 
-  // Load 3D models from /public immediately on page load
-  const rackGLTF = useGLTF('/data_center_rack.glb');
-  const motherBoardGLTF = useGLTF('/MotherBoard.glb');
+  // Load 3D models from /public immediately on page load with local Draco decoder
+  const rackGLTF = useGLTF('/data_center_rack.glb', '/draco/');
+  const motherBoardGLTF = useGLTF('/MotherBoard.glb', '/draco/');
 
   // Prepare Rack templates: ALL racks use the EXACT SAME consistent data_center_rack.glb model!
   const rackR1 = useMemo(() => rackGLTF.scene.clone(true), [rackGLTF.scene]);
@@ -435,10 +435,10 @@ export const DatacenterCorridor: React.FC<DatacenterCorridorProps> = ({
       {/* 6. SLIDING DOUBLE GLASS DOORS & INTEGRATED PORTAL AT Z = -29.75 */}
       <RoomGlassDoors openProgress={roomGlassDoorOpenProgress} position={[0, 0, -29.75]} />
 
-      {/* THE MODERN ARCHITECT ROOM 2 (room2.glb) */}
+      {/* THE MODERN ARCHITECT ROOM 2 (room2.glb) - Pre-compiled during preloader */}
       <LoungeRoom position={[0, 1.465, -33.13]} />
 
-      {/* 7. LAPTOP RUNWAY & AIRPLANE TAKEOFF EXPERIENCE */}
+      {/* 7. LAPTOP RUNWAY & AIRPLANE TAKEOFF EXPERIENCE - Pre-compiled during preloader */}
       <LaptopRunwayExperience scrollProgress={scrollProgress} />
 
       {/* 2-WAY DOUBLE AIRLOCK ENTRANCE GATE AT Z = 12.5 */}
@@ -494,7 +494,7 @@ export const DatacenterCorridor: React.FC<DatacenterCorridorProps> = ({
         doorAngle={door4Angle}
         isLeft={true}
       >
-        {/* MotherBoard.glb placed strictly inside the datacenter deck chassis shelf */}
+        {/* MotherBoard.glb placed strictly inside the datacenter deck chassis shelf - Pre-compiled during preloader */}
         <group position={[0, 1.25, 0]}>
           <group scale={[0.065, 0.065, 0.065]}>
             <primitive object={motherBoardModel} />
@@ -522,5 +522,5 @@ export const DatacenterCorridor: React.FC<DatacenterCorridorProps> = ({
   );
 };
 
-useGLTF.preload('/data_center_rack.glb');
-useGLTF.preload('/MotherBoard.glb');
+useGLTF.preload('/data_center_rack.glb', '/draco/');
+useGLTF.preload('/MotherBoard.glb', '/draco/');

@@ -23,11 +23,13 @@ const SHOWCASE_STATIONS = [
 interface ScrollytellingContainerProps {
   onInspectProject: (project: Project) => void;
   onCvClick: () => void;
+  onWarmed?: () => void;
 }
 
 export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = ({
   onInspectProject,
-  onCvClick
+  onCvClick,
+  onWarmed,
 }) => {
   const [scrollProgress, setScrollProgress] = useState(0);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
@@ -350,6 +352,7 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
       <World3DCanvas
         scrollProgress={scrollProgress}
         onInspectProject={onInspectProject}
+        onWarmed={onWarmed}
       />
 
       {/* 2. Full-Screen Sticky UI Overlays Layer */}

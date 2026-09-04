@@ -4,10 +4,11 @@ import { ShieldCheck, Compass, Sparkles } from 'lucide-react';
 import { soundEngine } from '../utils/audio';
 
 interface PreloaderProps {
+  isSceneWarmed?: boolean;
   onComplete: () => void;
 }
 
-export const Preloader: React.FC<PreloaderProps> = ({ onComplete }) => {
+export const Preloader: React.FC<PreloaderProps> = ({ isSceneWarmed = false, onComplete }) => {
   const { active, progress: assetProgress, loaded, total } = useProgress();
   const [displayProgress, setDisplayProgress] = useState(0);
   const [statusMessage, setStatusMessage] = useState('SYSTEM INITIALIZATION // PREPARING TAKEOFF...');
@@ -27,8 +28,11 @@ export const Preloader: React.FC<PreloaderProps> = ({ onComplete }) => {
     };
   }, []);
 
-  // Strict Synchronization: Assets are ready only when Drei loader reports 100% and inactive
-  const isAssetsReady = !active && (assetProgress >= 100 || (total > 0 && loaded >= total));
+  // Strict Synchronization: Assets are ready ONLY when Drei loader reports 100% AND GPU has warmed shaders
+  const isAssetsReady =
+    !active &&
+    (assetProgress >= 100 || (total > 0 && loaded >= total)) &&
+    Boolean(isSceneWarmed);
 
   // Progress Timer & Telemetry Sequencer
   useEffect(() => {
