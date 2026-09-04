@@ -133,8 +133,8 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
     return 0;
   };
 
-  // 1. SECTION 1: HERO (Cloud Stratosphere): 0% to 13%
-  const heroOpacity = getOpacity(0.0, 0.0, 0.090, 0.130);
+  // 1. SECTION 1: HERO (Cloud Stratosphere): 0% to 14%
+  const heroOpacity = getOpacity(0.0, 0.0, 0.100, 0.140);
 
   // Subtle Cloud Veil during Stratosphere to Airlock Descent (9.0% to 17.0%)
   const cloudDiveOpacity = (() => {
@@ -144,17 +144,17 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
     return Math.max(0, (1 - dist * dist) * 0.35);
   })();
 
-  // 2. SECTION 2: THE DATACENTER CATHEDRAL (In front of Sealed Gate ONLY): 16% to 25%
-  const datacenterSectionOpacity = getOpacity(0.160, 0.180, 0.235, 0.250);
+  // 2. SECTION 2: THE DATACENTER CATHEDRAL (In front of Sealed Gate ONLY): 15.5% to 26.5%
+  const datacenterSectionOpacity = getOpacity(0.155, 0.175, 0.245, 0.265);
 
-  // 3. SECTION 4: NEURAL CORE TERMINAL & MILESTONES (Inside Rack 4): 62.5% to 70%
-  const neuralCoreOpacity = getOpacity(0.625, 0.635, 0.690, 0.700);
+  // 3. SECTION 4: NEURAL CORE TERMINAL & MILESTONES (Inside Rack 4): 61.5% to 72%
+  const neuralCoreOpacity = getOpacity(0.615, 0.630, 0.700, 0.720);
 
-  // 4. SECTION 6: THE ARCHITECT TERMINAL LOGBOOK & TRANSMISSION: 81.0% to 88.0%
-  const terminalSectionOpacity = getOpacity(0.810, 0.820, 0.865, 0.880);
+  // 4. SECTION 6: THE ARCHITECT TERMINAL LOGBOOK & TRANSMISSION: 80.0% to 88.5%
+  const terminalSectionOpacity = getOpacity(0.800, 0.815, 0.865, 0.885);
 
-  // 6. SECTION 7: FLIGHT RUNWAY TAKEOFF HUD: 88.0% to 96.0%
-  const flightSectionOpacity = getOpacity(0.880, 0.895, 0.950, 0.965);
+  // 6. SECTION 7: FLIGHT RUNWAY TAKEOFF HUD: 88.0% to 97.0%
+  const flightSectionOpacity = getOpacity(0.880, 0.895, 0.955, 0.970);
 
   const scrollToProgress = (targetProgress: number) => {
     const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
@@ -280,8 +280,8 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
         }}
       />
 
-      {/* 3. Responsive Extended Scroll Track: h-1200vh on mobile, 1800vh on tablet, 2800vh on desktop */}
-      <div ref={scrollTrackRef} className="w-full h-[1200vh] sm:h-[1800vh] md:h-[2800vh] pointer-events-none relative" />
+      {/* 3. Responsive Extended Scroll Track: h-2200vh on mobile, 2500vh on tablet, 2800vh on desktop */}
+      <div ref={scrollTrackRef} className="w-full h-[2200vh] sm:h-[2500vh] md:h-[2800vh] pointer-events-none relative" />
 
       {/* 4. Pinned Vertical Stage Telemetry Rail on the right edge */}
       <div className="fixed right-6 top-1/2 -translate-y-1/2 z-30 hidden md:flex flex-col items-center gap-3.5">

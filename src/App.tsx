@@ -28,13 +28,13 @@ export function App() {
       ('ontouchstart' in window || navigator.maxTouchPoints > 0 || window.innerWidth < 768);
 
     const lenis = new Lenis({
-      duration: isTouch ? 0.75 : 1.1,
+      duration: 1.1,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       orientation: 'vertical',
       gestureOrientation: 'vertical',
       smoothWheel: true,
       syncTouch: true,
-      touchMultiplier: isTouch ? 2.5 : 1.1,
+      touchMultiplier: isTouch ? 1.4 : 1.1,
       wheelMultiplier: 0.9,
       infinite: false,
     });
