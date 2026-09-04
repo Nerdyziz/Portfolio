@@ -13,6 +13,7 @@ import { soundEngine } from '../../utils/audio';
 
 interface DatacenterCorridorProps {
   scrollProgress: number; // 0.0 to 1.0
+  scrollProgressRef?: React.MutableRefObject<number>;
   onInspectProject?: (project: Project) => void;
 }
 
@@ -368,6 +369,10 @@ export const DatacenterCorridor: React.FC<DatacenterCorridorProps> = ({
 
   return (
     <group position={[0, 0, 0]}>
+      {/* 1. 2-WAY DOUBLE AIRLOCK ENTRANCE GATE AT Z = 12.5 */}
+      <AirlockGate gateOpenProgress={gateOpenProgress} />
+
+      {/* 2. CORRIDOR ARCHITECTURAL STRUCTURE */}
       {/* Solid Architectural Facility Roof (Confined strictly to interior Z <= 12.5) */}
       <mesh position={[0, 4.25, -8.75]}>
         <boxGeometry args={[9.3, 0.2, 42.5]} />
@@ -398,7 +403,6 @@ export const DatacenterCorridor: React.FC<DatacenterCorridorProps> = ({
 
       {/* Overhead architectural linear LED skylight panels inside the corridor */}
       {[-24, -16, -8, 0, 8].map((z, idx) => {
-        // Keep all 5 emissive lightboxes rendered visually; on mobile activate 3 lights to avoid multi-pass shading stalls
         const hasPointLight = !isMobile || idx % 2 === 0;
         return (
           <group key={idx} position={[0, 4.18, z]}>
@@ -418,7 +422,7 @@ export const DatacenterCorridor: React.FC<DatacenterCorridorProps> = ({
         );
       })}
 
-      {/* 5. ARCHITECTURAL END-CAP WALLS AT Z = -29.8 */}
+      {/* ARCHITECTURAL END-CAP WALLS AT Z = -29.8 */}
       <group position={[0, 0, -29.8]}>
         {/* Left end-cap corridor wall */}
         <mesh position={[-3.35, 2.1, 0]}>
@@ -432,18 +436,7 @@ export const DatacenterCorridor: React.FC<DatacenterCorridorProps> = ({
         </mesh>
       </group>
 
-      {/* 6. SLIDING DOUBLE GLASS DOORS & INTEGRATED PORTAL AT Z = -29.75 */}
-      <RoomGlassDoors openProgress={roomGlassDoorOpenProgress} position={[0, 0, -29.75]} />
-
-      {/* THE MODERN ARCHITECT ROOM 2 (room2.glb) - Pre-compiled during preloader */}
-      <LoungeRoom position={[0, 1.465, -33.13]} />
-
-      {/* 7. LAPTOP RUNWAY & AIRPLANE TAKEOFF EXPERIENCE - Pre-compiled during preloader */}
-      <LaptopRunwayExperience scrollProgress={scrollProgress} />
-
-      {/* 2-WAY DOUBLE AIRLOCK ENTRANCE GATE AT Z = 12.5 */}
-      <AirlockGate gateOpenProgress={gateOpenProgress} />
-
+      {/* 3. RACKS 1 TO 3 */}
       {/* ROW 1 (z = 6.0): RACK 1 ON RIGHT -> SILICON SUBSTRATE CARD 1 (DISTRIBUTED ARCH) */}
       <RackWithDoor
         position={[2.4, 0, 6]}
@@ -486,7 +479,7 @@ export const DatacenterCorridor: React.FC<DatacenterCorridorProps> = ({
         <primitive object={staticL3} />
       </group>
 
-      {/* ROW 4 (z = -9.0): FINAL MASTER RACK 4 ON LEFT (EXACT SAME MODEL AS ALL OTHER DECKS) */}
+      {/* 4. ROW 4 (z = -9.0): FINAL MASTER RACK 4 ON LEFT & MOTHERBOARD */}
       <RackWithDoor
         position={[-2.4, 0, -9]}
         rotation={[0, Math.PI / 2, 0]}
@@ -494,30 +487,41 @@ export const DatacenterCorridor: React.FC<DatacenterCorridorProps> = ({
         doorAngle={door4Angle}
         isLeft={true}
       >
-        {/* MotherBoard.glb placed strictly inside the datacenter deck chassis shelf - Pre-compiled during preloader */}
+        {/* MotherBoard.glb placed strictly inside the datacenter deck chassis shelf */}
         <group position={[0, 1.25, 0]}>
           <group scale={[0.065, 0.065, 0.065]}>
             <primitive object={motherBoardModel} />
           </group>
 
           {/* Clean Neutral Studio Lighting directly over Motherboard (PURE RED CHIP) */}
-          <pointLight
-            position={[0, 0.6, 0]}
-            color="#FFFFFF"
-            intensity={4.5}
-            distance={3.5}
-            decay={2}
-          />
+          {!isMobile && (
+            <pointLight
+              position={[0, 0.6, 0]}
+              color="#FFFFFF"
+              intensity={4.5}
+              distance={3.5}
+              decay={2}
+            />
+          )}
           <directionalLight
             position={[0.5, 2.0, 0.5]}
             color="#FFFFFF"
-            intensity={2.5}
+            intensity={isMobile ? 3.5 : 2.5}
           />
         </group>
       </RackWithDoor>
       <group position={[2.4, 0, -9]} rotation={[0, -Math.PI / 2, 0]}>
         <primitive object={staticR4} />
       </group>
+
+      {/* 5. SLIDING DOUBLE GLASS DOORS & INTEGRATED PORTAL AT Z = -29.75 */}
+      <RoomGlassDoors openProgress={roomGlassDoorOpenProgress} position={[0, 0, -29.75]} />
+
+      {/* 6. THE MODERN ARCHITECT ROOM 2 (room2.glb) */}
+      <LoungeRoom position={[0, 1.465, -33.13]} />
+
+      {/* 7. LAPTOP RUNWAY & AIRPLANE TAKEOFF EXPERIENCE */}
+      <LaptopRunwayExperience scrollProgress={scrollProgress} />
     </group>
   );
 };

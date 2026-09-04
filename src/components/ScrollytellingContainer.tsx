@@ -7,7 +7,6 @@ import { SectorDatacenter } from './SectorDatacenter';
 import { SectorNeuralCore } from './SectorNeuralCore';
 import { TouchJoystick } from './TouchJoystick';
 import { Project } from '../types';
-
 import { soundEngine } from '../utils/audio';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -46,6 +45,38 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
   const releasedSinceLockRef = useRef<boolean>(true);
   const [stationBadgeText, setStationBadgeText] = useState<string | null>(null);
 
+  // Decouple 60 FPS Three.js rendering from React DOM tree state updates (~40 FPS responsive cap)
+  const lastStateUpdateTimeRef = useRef(0);
+  const pendingUpdateTimeoutRef = useRef<number | null>(null);
+
+  const scheduleStateUpdate = useCallback((newProgress: number, immediate = false) => {
+    scrollProgressRef.current = newProgress;
+    const now = performance.now();
+
+    if (immediate || now - lastStateUpdateTimeRef.current >= 24) { // ~40 FPS responsive cap for React DOM tree
+      lastStateUpdateTimeRef.current = now;
+      if (pendingUpdateTimeoutRef.current !== null) {
+        window.clearTimeout(pendingUpdateTimeoutRef.current);
+        pendingUpdateTimeoutRef.current = null;
+      }
+      setScrollProgress(newProgress);
+    } else if (pendingUpdateTimeoutRef.current === null) {
+      pendingUpdateTimeoutRef.current = window.setTimeout(() => {
+        lastStateUpdateTimeRef.current = performance.now();
+        pendingUpdateTimeoutRef.current = null;
+        setScrollProgress(scrollProgressRef.current);
+      }, 25);
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (pendingUpdateTimeoutRef.current !== null) {
+        window.clearTimeout(pendingUpdateTimeoutRef.current);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     const checkTouch = () => {
       setIsTouchDevice(
@@ -60,7 +91,7 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
   useEffect(() => {
     // Reset scroll to top on mount
     window.scrollTo(0, 0);
-    setScrollProgress(0);
+    scheduleStateUpdate(0, true);
 
     const updateMaxScroll = () => {
       maxScrollRef.current = document.documentElement.scrollHeight - window.innerHeight;
@@ -75,7 +106,7 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
       onUpdate: (self) => {
         // Prevent feedback loop when scrolling is driven by the virtual joystick / ticker
         if (isJoystickFlyingRef.current) return;
-        setScrollProgress(self.progress);
+        scheduleStateUpdate(self.progress);
       },
     });
 
@@ -138,8 +169,7 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
       isResettingRef.current = true;
       setPortalOpacity(1);
 
-      scrollProgressRef.current = 0.0;
-      setScrollProgress(0.0);
+      scheduleStateUpdate(0.0, true);
       currentVelocityRef.current = 0;
       targetVelocityRef.current = 0;
       lastUnlockedStationIdRef.current = null;
@@ -287,8 +317,7 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
           isResettingRef.current = true;
           setPortalOpacity(1);
 
-          scrollProgressRef.current = 0.0;
-          setScrollProgress(0.0);
+          scheduleStateUpdate(0.0, true);
           currentVelocityRef.current = 0;
           targetVelocityRef.current = 0;
           lastUnlockedStationIdRef.current = null;
@@ -324,8 +353,7 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
 
             // Settle softly onto station sweet spot
             if (currentP < station.progress && currentP + v >= station.progress) {
-              scrollProgressRef.current = station.progress;
-              setScrollProgress(station.progress);
+              scheduleStateUpdate(station.progress, true);
               currentVelocityRef.current = 0;
               targetVelocityRef.current = 0;
               lockedStationIdRef.current = station.id;
@@ -352,8 +380,7 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
             }
 
             if (currentP > station.progress && currentP + v <= station.progress) {
-              scrollProgressRef.current = station.progress;
-              setScrollProgress(station.progress);
+              scheduleStateUpdate(station.progress, true);
               currentVelocityRef.current = 0;
               targetVelocityRef.current = 0;
               lockedStationIdRef.current = station.id;
@@ -372,8 +399,7 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
         }
 
         const nextProgress = Math.min(1, Math.max(0, currentP + v));
-        scrollProgressRef.current = nextProgress;
-        setScrollProgress(nextProgress);
+        scheduleStateUpdate(nextProgress);
 
         // Throttle DOM window.scrollTo during flight (every 250ms) to eliminate forced reflows
         if (now - lastDomScrollTimeRef.current > 250) {
@@ -413,11 +439,13 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
       : prev;
   }, SHOWCASE_STATIONS[0]);
 
+
   return (
     <div className={`relative w-full ${isTouchDevice ? 'touch-none' : ''}`}>
       {/* 1. Full-Screen Pinned 3D WebGL Canvas Layer (Airlock Gate + Silicon Cards on Doors) */}
       <World3DCanvas
         scrollProgress={scrollProgress}
+        scrollProgressRef={scrollProgressRef}
         onInspectProject={onInspectProject}
         onWarmed={onWarmed}
       />
@@ -579,6 +607,7 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
           );
         })}
       </div>
+
 
       {/* 5. Virtual Aerospace Flight Joystick for Touch & Mobile Devices */}
       {isTouchDevice && (

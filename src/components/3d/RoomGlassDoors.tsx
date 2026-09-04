@@ -12,6 +12,12 @@ export const RoomGlassDoors: React.FC<RoomGlassDoorsProps> = ({
   // Slide displacement: each door slides outward by 2.15 meters into the wall pocket
   const slideOffset = openProgress * 2.15;
 
+  const isMobile = typeof window !== 'undefined' && (
+    window.innerWidth < 768 ||
+    'ontouchstart' in window ||
+    navigator.maxTouchPoints > 0
+  );
+
   return (
     <group position={position}>
       {/* 1. SEAMLESS ARCHITECTURAL DOORWAY PORTAL (NO Z-FIGHTING, NO CEILING GAP) */}
@@ -46,8 +52,10 @@ export const RoomGlassDoors: React.FC<RoomGlassDoorsProps> = ({
           <meshStandardMaterial color="#1E293B" metalness={0.9} roughness={0.2} />
         </mesh>
 
-        {/* Soft overhead portal entry lighting */}
-        <pointLight position={[0, 2.85, 0.3]} color="#E0F2FE" intensity={1.2} distance={4.5} decay={2} />
+        {/* Soft overhead portal entry lighting (Desktop only to conserve mobile fillrate) */}
+        {!isMobile && (
+          <pointLight position={[0, 2.85, 0.3]} color="#E0F2FE" intensity={1.2} distance={4.5} decay={2} />
+        )}
       </group>
 
       {/* 2. LEFT SLIDING GLASS DOOR */}
@@ -55,15 +63,25 @@ export const RoomGlassDoors: React.FC<RoomGlassDoorsProps> = ({
         {/* Glass Pane */}
         <mesh>
           <boxGeometry args={[2.05, 2.88, 0.035]} />
-          <meshPhysicalMaterial
-            color="#E0F2FE"
-            transparent
-            opacity={0.42}
-            roughness={0.1}
-            metalness={0.15}
-            transmission={0.65}
-            ior={1.52}
-          />
+          {isMobile ? (
+            <meshStandardMaterial
+              color="#E0F2FE"
+              transparent
+              opacity={0.35}
+              roughness={0.1}
+              metalness={0.2}
+            />
+          ) : (
+            <meshPhysicalMaterial
+              color="#E0F2FE"
+              transparent
+              opacity={0.42}
+              roughness={0.1}
+              metalness={0.15}
+              transmission={0.65}
+              ior={1.52}
+            />
+          )}
         </mesh>
 
         {/* Slim Obsidian Frame */}
@@ -96,15 +114,25 @@ export const RoomGlassDoors: React.FC<RoomGlassDoorsProps> = ({
         {/* Glass Pane */}
         <mesh>
           <boxGeometry args={[2.05, 2.88, 0.035]} />
-          <meshPhysicalMaterial
-            color="#E0F2FE"
-            transparent
-            opacity={0.42}
-            roughness={0.1}
-            metalness={0.15}
-            transmission={0.65}
-            ior={1.52}
-          />
+          {isMobile ? (
+            <meshStandardMaterial
+              color="#E0F2FE"
+              transparent
+              opacity={0.35}
+              roughness={0.1}
+              metalness={0.2}
+            />
+          ) : (
+            <meshPhysicalMaterial
+              color="#E0F2FE"
+              transparent
+              opacity={0.42}
+              roughness={0.1}
+              metalness={0.15}
+              transmission={0.65}
+              ior={1.52}
+            />
+          )}
         </mesh>
 
         {/* Slim Obsidian Frame */}

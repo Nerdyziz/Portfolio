@@ -7,6 +7,7 @@ import { Project } from '../../types';
 
 interface World3DCanvasProps {
   scrollProgress: number; // 0.0 to 1.0
+  scrollProgressRef?: React.MutableRefObject<number>;
   onInspectProject: (project: Project) => void;
   onWarmed?: () => void;
 }
@@ -58,8 +59,18 @@ function SceneWarmer({ onWarmed }: { onWarmed?: () => void }) {
   return null;
 }
 
+// Static reusable vectors to eliminate per-frame heap allocations & GC pressure
+const _tempTargetPos = new THREE.Vector3();
+const _tempTargetLookAt = new THREE.Vector3();
+
 // Camera Rig: Gate lands first -> Datacenter Cathedral fades in -> Gate breaches -> Silicon Doors -> Red Chip
-function CameraRig({ scrollProgress }: { scrollProgress: number }) {
+function CameraRig({
+  scrollProgress: propScrollProgress,
+  scrollProgressRef,
+}: {
+  scrollProgress: number;
+  scrollProgressRef?: React.MutableRefObject<number>;
+}) {
   const currentPos = useRef(new THREE.Vector3(0, 38, 42));
   const currentLookAt = useRef(new THREE.Vector3(0, 30, 5));
   const currentFov = useRef(48);
@@ -69,13 +80,15 @@ function CameraRig({ scrollProgress }: { scrollProgress: number }) {
     const mouseX = state.pointer.x * 0.16;
     const mouseY = state.pointer.y * 0.12;
 
-    const targetPos = new THREE.Vector3();
-    const targetLookAt = new THREE.Vector3();
+    const targetPos = _tempTargetPos;
+    const targetLookAt = _tempTargetLookAt;
     let targetFov = 48;
 
     const aspect = state.viewport.aspect;
     const isPortrait = aspect < 1.15;
     const portraitZOffset = isPortrait ? THREE.MathUtils.clamp((1.15 - aspect) * 4.0, 0, 3.2) : 0;
+
+    const scrollProgress = scrollProgressRef ? scrollProgressRef.current : propScrollProgress;
 
     if (scrollProgress <= 0.085) {
       // 1. HERO STRATOSPHERE OVERVIEW (0% to 8.5%)
@@ -309,6 +322,7 @@ function CameraRig({ scrollProgress }: { scrollProgress: number }) {
 }
 export const World3DCanvas: React.FC<World3DCanvasProps> = ({
   scrollProgress,
+  scrollProgressRef,
   onInspectProject,
   onWarmed,
 }) => {
@@ -370,15 +384,16 @@ export const World3DCanvas: React.FC<World3DCanvasProps> = ({
 
         {/* Suspense wrapper for models */}
         <Suspense fallback={null}>
-          <CloudsStage scrollProgress={scrollProgress} />
+          <CloudsStage scrollProgress={scrollProgress} scrollProgressRef={scrollProgressRef} />
           <DatacenterCorridor
             scrollProgress={scrollProgress}
+            scrollProgressRef={scrollProgressRef}
             onInspectProject={onInspectProject}
           />
         </Suspense>
 
         {/* Cinematic Camera Rig */}
-        <CameraRig scrollProgress={scrollProgress} />
+        <CameraRig scrollProgress={scrollProgress} scrollProgressRef={scrollProgressRef} />
       </Canvas>
 
       {/* Persistent HUD Depth Status Monitor - Positioned safely below navbar on mobile */}

@@ -5,14 +5,17 @@ import * as THREE from 'three';
 
 interface CloudsStageProps {
   scrollProgress: number; // 0.0 to 1.0
+  scrollProgressRef?: React.MutableRefObject<number>;
 }
 
-export const CloudsStage: React.FC<CloudsStageProps> = ({ scrollProgress }) => {
+export const CloudsStage: React.FC<CloudsStageProps> = ({ scrollProgress, scrollProgressRef }) => {
   const centralCumulusRef = useRef<THREE.Group>(null);
   const leftBankRef = useRef<THREE.Group>(null);
   const rightBankRef = useRef<THREE.Group>(null);
   const underFloorSeaRef = useRef<THREE.Group>(null);
   const dustRef = useRef<THREE.Points>(null);
+
+  const cloudTexture = useTexture('/textures/cloud.png');
 
   // Detect mobile device to halve alpha overdraw while preserving cloud volume & fluffiness
   const isMobile = useMemo(() => {
@@ -36,15 +39,16 @@ export const CloudsStage: React.FC<CloudsStageProps> = ({ scrollProgress }) => {
   }, [isMobile]);
 
   useFrame((_, delta) => {
+    const currentProgress = scrollProgressRef ? scrollProgressRef.current : scrollProgress;
     // Only compute if in the sky / descent zone
-    if (scrollProgress >= 0.24) return;
+    if (currentProgress >= 0.24) return;
 
     if (dustRef.current) {
       dustRef.current.rotation.y += delta * 0.012;
     }
 
     // Clouds parting smoothly during descent (0.0 to 0.17)
-    const partProgress = THREE.MathUtils.clamp(scrollProgress / 0.17, 0, 1);
+    const partProgress = THREE.MathUtils.clamp(currentProgress / 0.17, 0, 1);
     const eased = Math.sin((partProgress * Math.PI) / 2);
 
     if (centralCumulusRef.current) {
@@ -73,69 +77,105 @@ export const CloudsStage: React.FC<CloudsStageProps> = ({ scrollProgress }) => {
       {/* ========================================================================= */}
       {/* HIGH-ALTITUDE STRATOSPHERE CLOUDS (CONFINED STRICTLY TO EXTERIOR Z >= 14) */}
       {/* ========================================================================= */}
-      <Clouds
-        limit={isMobile ? 35 : 150}
-        range={isMobile ? 35 : 150}
-        frustumCulled={false}
-        material={THREE.MeshLambertMaterial}
-        texture="/textures/cloud.png"
-      >
-        {/* 1. Main Central Cumulus (Greets the user in center view at scroll 0) */}
-        <group ref={centralCumulusRef} position={[0, 28.0, 20.0]}>
-          <Cloud
-            seed={3}
-            segments={isMobile ? 6 : 28}
-            bounds={[20, 6, 12]}
-            volume={16}
-            color="#FFFDF8"
-            fade={8}
-            opacity={0.95}
-            speed={0.12}
-          />
-        </group>
+      {isMobile ? (
+        <group>
+          {/* 1. Main Central Cumulus Billboard (Mobile: zero-overdraw single plane) */}
+          <group ref={centralCumulusRef} position={[0, 28.0, 20.0]}>
+            <mesh>
+              <planeGeometry args={[26, 12]} />
+              <meshBasicMaterial map={cloudTexture} transparent opacity={0.88} depthWrite={false} color="#FFFDF8" />
+            </mesh>
+          </group>
 
-        {/* 2. Flank Left Cloud Bank */}
-        <group ref={leftBankRef} position={[-5.0, 26.0, 22.0]}>
-          <Cloud
-            seed={7}
-            segments={isMobile ? 4 : 24}
-            bounds={[14, 5, 10]}
-            volume={14}
-            color="#FFFFFF"
-            fade={8}
-            opacity={0.93}
-            speed={0.1}
-          />
-        </group>
+          {/* 2. Flank Left Cloud Bank Billboard */}
+          <group ref={leftBankRef} position={[-5.0, 26.0, 22.0]}>
+            <mesh>
+              <planeGeometry args={[20, 10]} />
+              <meshBasicMaterial map={cloudTexture} transparent opacity={0.85} depthWrite={false} color="#FFFFFF" />
+            </mesh>
+          </group>
 
-        {/* 3. Flank Right Cloud Bank (Sunlit Golden) */}
-        <group ref={rightBankRef} position={[5.0, 26.0, 22.0]}>
-          <Cloud
-            seed={11}
-            segments={isMobile ? 4 : 24}
-            bounds={[14, 5, 10]}
-            volume={14}
-            color="#FFFBF0"
-            fade={8}
-            opacity={0.93}
-            speed={0.1}
-          />
-        </group>
+          {/* 3. Flank Right Cloud Bank Billboard */}
+          <group ref={rightBankRef} position={[5.0, 26.0, 22.0]}>
+            <mesh>
+              <planeGeometry args={[20, 10]} />
+              <meshBasicMaterial map={cloudTexture} transparent opacity={0.85} depthWrite={false} color="#FFFBF0" />
+            </mesh>
+          </group>
 
-        {/* 4. Lower Sky Cloud Ocean (At Z=22, stays outside the gate at Z=12.5) */}
-        <group ref={underFloorSeaRef} position={[0, 18.0, 22.0]}>
-          <Cloud
-            seed={18}
-            segments={isMobile ? 5 : 30}
-            bounds={[36, 6, 16]}
-            volume={20}
-            color="#FFFDF6"
-            fade={8}
-            opacity={0.95}
-            speed={0.08}
-          />
+          {/* 4. Lower Sky Cloud Ocean Billboard */}
+          <group ref={underFloorSeaRef} position={[0, 18.0, 22.0]}>
+            <mesh rotation={[-Math.PI * 0.15, 0, 0]}>
+              <planeGeometry args={[36, 14]} />
+              <meshBasicMaterial map={cloudTexture} transparent opacity={0.92} depthWrite={false} color="#FFFDF6" />
+            </mesh>
+          </group>
         </group>
-      </Clouds>
+      ) : (
+        <Clouds
+          limit={150}
+          range={150}
+          frustumCulled={false}
+          material={THREE.MeshLambertMaterial}
+          texture="/textures/cloud.png"
+        >
+          {/* 1. Main Central Cumulus (Greets the user in center view at scroll 0) */}
+          <group ref={centralCumulusRef} position={[0, 28.0, 20.0]}>
+            <Cloud
+              seed={3}
+              segments={28}
+              bounds={[20, 6, 12]}
+              volume={16}
+              color="#FFFDF8"
+              fade={8}
+              opacity={0.95}
+              speed={0.12}
+            />
+          </group>
+
+          {/* 2. Flank Left Cloud Bank */}
+          <group ref={leftBankRef} position={[-5.0, 26.0, 22.0]}>
+            <Cloud
+              seed={7}
+              segments={24}
+              bounds={[14, 5, 10]}
+              volume={14}
+              color="#FFFFFF"
+              fade={8}
+              opacity={0.93}
+              speed={0.1}
+            />
+          </group>
+
+          {/* 3. Flank Right Cloud Bank (Sunlit Golden) */}
+          <group ref={rightBankRef} position={[5.0, 26.0, 22.0]}>
+            <Cloud
+              seed={11}
+              segments={24}
+              bounds={[14, 5, 10]}
+              volume={14}
+              color="#FFFBF0"
+              fade={8}
+              opacity={0.93}
+              speed={0.1}
+            />
+          </group>
+
+          {/* 4. Lower Sky Cloud Ocean (At Z=22, stays outside the gate at Z=12.5) */}
+          <group ref={underFloorSeaRef} position={[0, 18.0, 22.0]}>
+            <Cloud
+              seed={18}
+              segments={30}
+              bounds={[36, 6, 16]}
+              volume={20}
+              color="#FFFDF6"
+              fade={8}
+              opacity={0.95}
+              speed={0.08}
+            />
+          </group>
+        </Clouds>
+      )}
 
       {/* Floating Golden Atmospheric Sunlight Motes */}
       <points ref={dustRef}>
