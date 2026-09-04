@@ -8,7 +8,7 @@ interface LaptopRunwayExperienceProps {
 }
 
 export const LaptopRunwayExperience: React.FC<LaptopRunwayExperienceProps> = ({ scrollProgress }) => {
-  const { scene: planeScene } = useGLTF('/plane.glb');
+  const { scene: planeScene } = useGLTF('/plane.glb', '/draco/');
 
   // Clone plane model and remove the giant 491m floor plane
   const planeModel = useMemo(() => {
@@ -399,4 +399,4 @@ export const LaptopRunwayExperience: React.FC<LaptopRunwayExperienceProps> = ({ 
   );
 };
 
-useGLTF.preload('/plane.glb');
+useGLTF.preload('/plane.glb', '/draco/');

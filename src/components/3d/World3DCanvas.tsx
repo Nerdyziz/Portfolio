@@ -342,7 +342,7 @@ export const World3DCanvas: React.FC<World3DCanvasProps> = ({
       <Canvas
         camera={{ position: [0, 38, 42], fov: 48 }}
         gl={{
-          antialias: true,
+          antialias: !isMobile,
           alpha: true,
           powerPreference: 'high-performance',
           stencil: false,
