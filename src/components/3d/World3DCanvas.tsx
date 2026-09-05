@@ -134,7 +134,7 @@ function CameraRig({
       const s = p * p * (3 - 2 * p); // Silky cubic smoothstep
 
       const camY = THREE.MathUtils.lerp(34, 1.35, s);
-      const camZ = THREE.MathUtils.lerp(38, 16.0 + portraitZOffset, s);
+      const camZ = THREE.MathUtils.lerp(38, 18.0 + portraitZOffset, s);
 
       targetPos.set(
         mouseX * 0.12,
@@ -149,13 +149,14 @@ function CameraRig({
       );
 
     } else if (scrollProgress <= 0.250) {
-      // 3. STANDING OUTSIDE THE SEALED GATE (17.5% to 25%)
-      // Section 2: "The Datacenter Cathedral" overlay active in front of the gate
+      // 3. APPROACHING OUTSIDE THE GATE (17.5% to 25%)
+      // Section 2: "The Datacenter Cathedral" overlay active with dynamic forward approach
       const p = (scrollProgress - 0.175) / (0.250 - 0.175);
+      const s = p * p * (3 - 2 * p);
       targetPos.set(
         mouseX * 0.15,
         1.35 + mouseY * 0.12,
-        THREE.MathUtils.lerp(16.0 + portraitZOffset, 14.8 + portraitZOffset, p)
+        THREE.MathUtils.lerp(18.0 + portraitZOffset, 14.0 + portraitZOffset, s)
       );
       targetLookAt.set(0, 1.4, 12.5);
 
@@ -165,7 +166,7 @@ function CameraRig({
       targetPos.set(
         mouseX * 0.15,
         1.35 + mouseY * 0.12,
-        THREE.MathUtils.lerp(14.8 + portraitZOffset, 10.5, p)
+        THREE.MathUtils.lerp(14.0 + portraitZOffset, 10.5, p)
       );
       targetLookAt.set(0, 1.35, -20);
 

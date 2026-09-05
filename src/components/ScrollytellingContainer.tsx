@@ -11,10 +11,7 @@ import { TouchJoystick } from './TouchJoystick';
 import { Project } from '../types';
 import { soundEngine } from '../utils/audio';
 
-const World3DCanvas = dynamic(
-  () => import('./3d/World3DCanvas').then((mod) => mod.World3DCanvas),
-  { ssr: false }
-);
+import { World3DCanvas } from './3d/World3DCanvas';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -40,6 +37,7 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
   onWarmed,
 }) => {
   const [scrollProgress, setScrollProgress] = useState(0);
+  const [mounted, setMounted] = useState(false);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const scrollTrackRef = useRef<HTMLDivElement>(null);
   const scrollProgressRef = useRef(0);
@@ -48,10 +46,6 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
   const lastDomScrollTimeRef = useRef(0);
   const targetVelocityRef = useRef(0);
   const currentVelocityRef = useRef(0);
-  const lockedStationIdRef = useRef<string | null>(null);
-  const lastUnlockedStationIdRef = useRef<string | null>(null);
-  const lockTimestampRef = useRef<number>(0);
-  const releasedSinceLockRef = useRef<boolean>(true);
   const [stationBadgeText, setStationBadgeText] = useState<string | null>(null);
 
   // Decouple 60 FPS Three.js rendering from React DOM tree updates.
@@ -87,6 +81,7 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
   }, []);
 
   useEffect(() => {
+    setMounted(true);
     const checkTouch = () => {
       setIsTouchDevice(
         'ontouchstart' in window || navigator.maxTouchPoints > 0 || window.innerWidth < 1024
@@ -181,8 +176,6 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
       scheduleStateUpdate(0.0, true);
       currentVelocityRef.current = 0;
       targetVelocityRef.current = 0;
-      lastUnlockedStationIdRef.current = null;
-      lockedStationIdRef.current = null;
       isJoystickFlyingRef.current = false;
 
       // Instantly reset scroll to top (Section 1)
@@ -269,12 +262,16 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
     scrollProgressRef.current = scrollProgress;
   }, [scrollProgress]);
 
-  // Smooth cinematic flight loop with seamless magnetic docking at all decks and stations
+  const lastStationIdRef = useRef<string | null>(null);
+  const currentStationIdRef = useRef<string | null>(null);
+  const dwellStartTimeRef = useRef<number>(0);
+  const isDwellingRef = useRef<boolean>(false);
+
+  // Smooth cinematic flight loop with intelligent magnetic card reading detents
   useEffect(() => {
     const updateFlight = () => {
-      const now = Date.now();
+      const now = performance.now();
       const currentP = scrollProgressRef.current;
-      const isLocked = lockedStationIdRef.current !== null;
 
       // If currently transitioning via cloud portal, pause flight until arrival in Section 1
       if (isResettingRef.current) {
@@ -282,23 +279,23 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
         return;
       }
 
-      // If resting at a station / deck
-      if (isLocked) {
-        const timeAtStation = now - lockTimestampRef.current;
-        const pushingForward = targetVelocityRef.current > 0.00012;
-        const pushingReverse = targetVelocityRef.current < -0.00012;
+      // 1. If currently parked at a card station for readability:
+      if (isDwellingRef.current && currentStationIdRef.current) {
+        const station = SHOWCASE_STATIONS.find((s) => s.id === currentStationIdRef.current);
+        const dwellDuration = now - dwellStartTimeRef.current;
+        const absThrottle = Math.abs(targetVelocityRef.current);
 
-        // Smooth breakout: pushing forward after brief moment (350ms) or on re-push
-        if (pushingReverse) {
-          lastUnlockedStationIdRef.current = lockedStationIdRef.current;
-          lockedStationIdRef.current = null;
-          setStationBadgeText(null);
-        } else if (pushingForward && (releasedSinceLockRef.current || timeAtStation > 350)) {
-          lastUnlockedStationIdRef.current = lockedStationIdRef.current;
-          lockedStationIdRef.current = null;
-          setStationBadgeText(null);
+        // Break out if user holds throttle past comfortable reading dwell (650ms) or pushes firmly (> 0.0030)
+        if (absThrottle > 0.0003 && (dwellDuration > 650 || absThrottle > 0.0030)) {
+          isDwellingRef.current = false;
+          lastStationIdRef.current = currentStationIdRef.current;
+          currentStationIdRef.current = null;
           soundEngine.playClick(1000);
         } else {
+          // Keep camera locked squarely on the card
+          if (station) {
+            scheduleStateUpdate(station.progress);
+          }
           currentVelocityRef.current = 0;
           return;
         }
@@ -309,20 +306,10 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
 
       if (Math.abs(currentVelocityRef.current) > 0.000005) {
         isJoystickFlyingRef.current = true;
-        
+
         // Normalize flight velocity to 60 FPS delta time for consistent speed across 60Hz, 90Hz & 120Hz screens
         const deltaRatio = Math.min(gsap.ticker.deltaRatio(60), 2.5);
         let v = currentVelocityRef.current * deltaRatio;
-
-        // Clear cooldown once we've traveled away from the station we just left
-        if (lastUnlockedStationIdRef.current) {
-          const unlockedStation = SHOWCASE_STATIONS.find(
-            (s) => s.id === lastUnlockedStationIdRef.current
-          );
-          if (unlockedStation && Math.abs(currentP - unlockedStation.progress) > 0.025) {
-            lastUnlockedStationIdRef.current = null;
-          }
-        }
 
         // Forward motion: check continuous flight loop re-entry into Section 1 Stratosphere
         if (v > 0 && currentP + v >= 0.990) {
@@ -332,9 +319,10 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
           scheduleStateUpdate(0.0, true);
           currentVelocityRef.current = 0;
           targetVelocityRef.current = 0;
-          lastUnlockedStationIdRef.current = null;
-          lockedStationIdRef.current = null;
           isJoystickFlyingRef.current = false;
+          isDwellingRef.current = false;
+          currentStationIdRef.current = null;
+          lastStationIdRef.current = null;
 
           const lenis = (window as unknown as { lenis?: any }).lenis;
           if (lenis) {
@@ -351,28 +339,46 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
           return;
         }
 
-        // Forward motion: check approach to upcoming station
-        if (v > 0) {
-          for (const station of SHOWCASE_STATIONS) {
-            if (lastUnlockedStationIdRef.current === station.id) continue;
+        // Clear station cooldown once we've traveled away from the station we just left
+        if (lastStationIdRef.current) {
+          const lastStation = SHOWCASE_STATIONS.find((s) => s.id === lastStationIdRef.current);
+          if (lastStation && Math.abs(currentP - lastStation.progress) > 0.035) {
+            lastStationIdRef.current = null;
+          }
+        }
 
-            const dist = station.progress - currentP;
-            // Magnetic cushioning as deck gate opens (smooth slow-down, no brick wall!)
-            if (dist > 0 && dist < 0.022) {
-              const cushion = Math.max(0.35, dist / 0.022);
-              v *= cushion;
-            }
+        // 2. Approach sensing for upcoming stations:
+        // Slow down smoothly so cards are 100% visible, then soft-dock for readability
+        let activeBadge: string | null = null;
 
-            // Settle softly onto station sweet spot
-            if (currentP < station.progress && currentP + v >= station.progress) {
+        for (const station of SHOWCASE_STATIONS) {
+          const dist = Math.abs(currentP - station.progress);
+          const isApproaching =
+            (v > 0 && currentP < station.progress) || (v < 0 && currentP > station.progress);
+
+          if (dist < 0.045) {
+            activeBadge = station.name;
+          }
+
+          if (lastStationIdRef.current === station.id) continue;
+
+          if (isApproaching && dist < 0.030) {
+            // Progressive deceleration cushion so the card smoothly comes into clear focus
+            const cushion = Math.max(0.35, 0.35 + 0.65 * (dist / 0.030));
+            v *= cushion;
+
+            // Settle squarely on the card sweet spot
+            if (
+              dist < 0.005 ||
+              (v > 0 && currentP + v >= station.progress) ||
+              (v < 0 && currentP + v <= station.progress)
+            ) {
               scheduleStateUpdate(station.progress, true);
               currentVelocityRef.current = 0;
-              targetVelocityRef.current = 0;
-              lockedStationIdRef.current = station.id;
-              lockTimestampRef.current = now;
-              releasedSinceLockRef.current = false;
-              isJoystickFlyingRef.current = false;
-              setStationBadgeText(`${station.name}`);
+              isDwellingRef.current = true;
+              currentStationIdRef.current = station.id;
+              dwellStartTimeRef.current = now;
+              setStationBadgeText(station.name);
               soundEngine.playClick(1100);
 
               if (maxScrollRef.current > 0) {
@@ -381,34 +387,9 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
               return;
             }
           }
-        } else if (v < 0) {
-          for (const station of [...SHOWCASE_STATIONS].reverse()) {
-            if (lastUnlockedStationIdRef.current === station.id) continue;
-
-            const dist = currentP - station.progress;
-            if (dist > 0 && dist < 0.022) {
-              const cushion = Math.max(0.35, dist / 0.022);
-              v *= cushion;
-            }
-
-            if (currentP > station.progress && currentP + v <= station.progress) {
-              scheduleStateUpdate(station.progress, true);
-              currentVelocityRef.current = 0;
-              targetVelocityRef.current = 0;
-              lockedStationIdRef.current = station.id;
-              lockTimestampRef.current = now;
-              releasedSinceLockRef.current = false;
-              isJoystickFlyingRef.current = false;
-              setStationBadgeText(`${station.name}`);
-              soundEngine.playClick(900);
-
-              if (maxScrollRef.current > 0) {
-                window.scrollTo(0, station.progress * maxScrollRef.current);
-              }
-              return;
-            }
-          }
         }
+
+        setStationBadgeText(activeBadge);
 
         const nextProgress = Math.min(1, Math.max(0, currentP + v));
         scheduleStateUpdate(nextProgress);
@@ -423,22 +404,25 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
 
     gsap.ticker.add(updateFlight);
     return () => gsap.ticker.remove(updateFlight);
-  }, []);
+  }, [scheduleStateUpdate]);
 
   const handleVelocityChange = useCallback((intensity: number) => {
     // If stick is returned to near-center, mark released
-    if (Math.abs(intensity) < 0.1) {
-      releasedSinceLockRef.current = true;
+    if (Math.abs(intensity) < 0.08) {
       targetVelocityRef.current = 0;
       return;
     }
 
-    // Dynamic non-linear speed curve:
-    // Gentle push (< 0.4): fine precision navigation (~0.0015)
-    // Firm push (> 0.7): high-speed rapid traversal (~0.0050 - 0.0055)
+    // Balanced non-linear speed curve:
+    // Gentle push (< 0.35): fine precision navigation (~0.0008 - 0.0018)
+    // Medium push (0.35 - 0.70): comfortable readable traversal (~0.0025 - 0.0038)
+    // Full push (> 0.70): swift rapid transit (~0.0048 - 0.0052)
     const sign = Math.sign(intensity);
     const absVal = Math.abs(intensity);
-    const scaledSpeed = (absVal < 0.4 ? absVal * 0.0028 : 0.00112 + Math.pow((absVal - 0.4) / 0.6, 1.4) * 0.0042) * sign;
+    const scaledSpeed =
+      (absVal < 0.35
+        ? absVal * 0.0025
+        : 0.00087 + Math.pow((absVal - 0.35) / 0.65, 1.3) * 0.0042) * sign;
 
     targetVelocityRef.current = scaledSpeed;
   }, []);
@@ -455,12 +439,14 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
   return (
     <div className={`relative w-full ${isTouchDevice ? 'touch-none' : ''}`}>
       {/* 1. Full-Screen Pinned 3D WebGL Canvas Layer (Airlock Gate + Silicon Cards on Doors) */}
-      <World3DCanvas
-        scrollProgress={scrollProgress}
-        scrollProgressRef={scrollProgressRef}
-        onInspectProject={onInspectProject}
-        onWarmed={onWarmed}
-      />
+      {mounted && (
+        <World3DCanvas
+          scrollProgress={scrollProgress}
+          scrollProgressRef={scrollProgressRef}
+          onInspectProject={onInspectProject}
+          onWarmed={onWarmed}
+        />
+      )}
 
       {/* 2. Full-Screen Sticky UI Overlays Layer */}
       <div className="fixed inset-0 pointer-events-none z-10 flex flex-col justify-center overflow-hidden">
