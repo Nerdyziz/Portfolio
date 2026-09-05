@@ -68,13 +68,13 @@ export function App() {
     if (isTouch) {
       const preventTouchScroll = (e: TouchEvent) => {
         const target = e.target as HTMLElement | null;
-        // Allow tap and scroll only inside scrollable modals, terminal, or buttons
+        // Allow tap and internal scrolling ONLY inside modal popups (glass-panel), inputs, links, or buttons
         if (
           target &&
-          (target.closest('button') ||
+          (target.closest('.glass-panel') ||
+            target.closest('button') ||
             target.closest('input') ||
             target.closest('a') ||
-            target.closest('.overflow-y-auto') ||
             target.closest('.select-text'))
         ) {
           return;

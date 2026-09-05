@@ -1,0 +1,104 @@
+<svg width="1024" height="640" viewBox="0 0 1024 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Soft Organic Gaussian Feathering Filter -->
+    <filter id="cloudFeather" x="-20%" y="-20%" width="140%" height="140%" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="14" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+    
+    <filter id="softMist" x="-30%" y="-30%" width="160%" height="160%" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="28"/>
+    </filter>
+
+    <filter id="edgeWisps" x="-20%" y="-20%" width="140%" height="140%" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="8"/>
+    </filter>
+
+    <!-- Deep Ambient Volumetric Base -->
+    <radialGradient id="ambBase" cx="50%" cy="58%" r="52%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.96"/>
+      <stop offset="40%" stop-color="#FFFFFF" stop-opacity="0.88"/>
+      <stop offset="70%" stop-color="#F8FAFC" stop-opacity="0.52"/>
+      <stop offset="90%" stop-color="#E2E8F0" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Volumetric Core Billow Gradient -->
+    <radialGradient id="coreBillow" cx="48%" cy="42%" r="50%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="1.0"/>
+      <stop offset="55%" stop-color="#FFFFFF" stop-opacity="0.94"/>
+      <stop offset="80%" stop-color="#F8FAFC" stop-opacity="0.65"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- High Sunlit Dome Crest -->
+    <linearGradient id="crestSunlight" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.99"/>
+      <stop offset="50%" stop-color="#FFFFFF" stop-opacity="0.85"/>
+      <stop offset="85%" stop-color="#F1F5F9" stop-opacity="0.30"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- Left Flank Billow Gradient -->
+    <radialGradient id="leftPuff" cx="42%" cy="45%" r="52%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.98"/>
+      <stop offset="50%" stop-color="#FFFFFF" stop-opacity="0.88"/>
+      <stop offset="80%" stop-color="#F1F5F9" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Right Flank Billow Gradient -->
+    <radialGradient id="rightPuff" cx="58%" cy="46%" r="50%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.98"/>
+      <stop offset="50%" stop-color="#FFFFFF" stop-opacity="0.88"/>
+      <stop offset="80%" stop-color="#F1F5F9" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- 1. Deep Atmospheric Mist & Broad Foundation -->
+  <g filter="url(#softMist)">
+    <ellipse cx="512" cy="380" rx="420" ry="170" fill="url(#ambBase)"/>
+    <ellipse cx="340" cy="390" rx="260" ry="140" fill="url(#leftPuff)"/>
+    <ellipse cx="680" cy="390" rx="270" ry="140" fill="url(#rightPuff)"/>
+  </g>
+
+  <!-- 2. Main Organic Cumulus Lobes (Layered Organic Contours) -->
+  <g filter="url(#cloudFeather)">
+    <!-- Base Lower Shelf -->
+    <path d="M160,430 C130,370 210,310 280,320 C320,240 430,220 480,270 C520,180 660,180 710,250 C770,220 860,260 870,330 C940,360 940,440 880,470 C810,500 240,510 160,430 Z" fill="url(#ambBase)"/>
+    
+    <!-- Left Major Mass -->
+    <path d="M220,380 C200,320 260,260 330,280 C360,210 460,200 500,260 C480,350 360,430 220,380 Z" fill="url(#leftPuff)"/>
+
+    <!-- Right Major Mass -->
+    <path d="M520,270 C570,190 700,200 740,270 C800,250 880,290 870,370 C830,440 680,440 520,380 Z" fill="url(#rightPuff)"/>
+
+    <!-- Central High Tower Cumulus -->
+    <path d="M360,300 C370,190 480,140 560,170 C630,130 730,190 710,290 C660,360 410,370 360,300 Z" fill="url(#crestSunlight)"/>
+    
+    <!-- Dense Core Volumetric Dome -->
+    <ellipse cx="512" cy="310" rx="260" ry="160" fill="url(#coreBillow)"/>
+  </g>
+
+  <!-- 3. High-Definition Wisps & Sunlit Edge Billows -->
+  <g filter="url(#edgeWisps)">
+    <!-- Upper Crest 1 -->
+    <path d="M420,190 C460,135 540,135 580,180 C550,220 450,220 420,190 Z" fill="url(#crestSunlight)"/>
+    
+    <!-- Upper Crest 2 -->
+    <path d="M560,165 C610,120 680,140 705,195 C660,225 590,210 560,165 Z" fill="url(#crestSunlight)"/>
+    
+    <!-- Left Flank Wisps -->
+    <path d="M190,360 C160,320 220,280 270,300 C250,350 210,380 190,360 Z" fill="url(#crestSunlight)"/>
+    
+    <!-- Right Flank Wisps -->
+    <path d="M780,280 C840,250 900,290 880,340 C840,360 800,320 780,280 Z" fill="url(#crestSunlight)"/>
+    
+    <!-- Internal Pure White Highlights -->
+    <ellipse cx="512" cy="240" rx="140" ry="75" fill="#FFFFFF" fill-opacity="0.80"/>
+    <ellipse cx="440" cy="270" rx="90" ry="55" fill="#FFFFFF" fill-opacity="0.85"/>
+    <ellipse cx="590" cy="275" rx="95" ry="55" fill="#FFFFFF" fill-opacity="0.85"/>
+    <ellipse cx="512" cy="330" rx="200" ry="90" fill="#FFFFFF" fill-opacity="0.75"/>
+  </g>
+</svg>

@@ -456,7 +456,7 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
       <div className="fixed inset-0 pointer-events-none z-10 flex flex-col justify-center overflow-hidden">
         {/* Section 1: Hero (Clouds) */}
         <div
-          className="absolute inset-0 flex items-start justify-center overflow-y-auto transition-opacity duration-300"
+          className="absolute inset-0 flex items-start justify-center overflow-hidden transition-opacity duration-300"
           style={{
             opacity: heroOpacity,
             pointerEvents: heroOpacity > 0.05 ? 'auto' : 'none',

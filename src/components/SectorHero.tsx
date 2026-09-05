@@ -77,21 +77,21 @@ export const SectorHero: React.FC<SectorHeroProps> = ({
         className="w-full flex flex-col items-center text-center relative"
       >
         {/* ========================================================================= */}
-        {/* REALISTIC WHITE CLOUDS FRAMING THE PERIMETER (POSITIONED AS IN IMAGE 2)   */}
-        {/* Pure white, crisp, natural cloud texture; center text is 100% open & clear */}
+        {/* REALISTIC WHITE CLOUDS FRAMING THE PERIMETER (CLEAN OUTER SCREEN CORNERS) */}
+        {/* Pinned strictly to outer margins; headline, bio, & buttons are 100% clear */}
         {/* ========================================================================= */}
         {isCloudVisible && (
           <div
-            className="absolute inset-0 pointer-events-none z-20 overflow-visible"
+            className="absolute inset-0 pointer-events-none z-0 overflow-visible"
             style={{ opacity: cloudFade }}
           >
             {/* Cloud 1: Fluffy upper-left cloud framing the upper-left corner */}
             <div
-              className={`absolute -top-12 -left-12 sm:-left-20 w-[260px] sm:w-[400px] md:w-[500px] pointer-events-none ${
+              className={`absolute -top-20 -left-20 sm:-left-28 sm:-top-24 w-[190px] sm:w-[380px] md:w-[480px] pointer-events-none ${
                 isMobile ? '' : 'transition-transform duration-75 ease-out'
               }`}
               style={{
-                transform: `translate3d(${-exitEase * 240}px, ${-exitEase * 60}px, 0) scale(${1 + exitEase * 0.15})`,
+                transform: `translate3d(${-exitEase * 260}px, ${-exitEase * 80}px, 0) scale(${1 + exitEase * 0.15})`,
                 willChange: 'transform',
                 filter: isMobile ? 'none' : 'drop-shadow(0 15px 25px rgba(255, 255, 255, 0.4))',
               }}
@@ -106,11 +106,11 @@ export const SectorHero: React.FC<SectorHeroProps> = ({
 
             {/* Cloud 2: Fluffy upper-right cloud framing the upper-right corner */}
             <div
-              className={`absolute top-2 -right-10 sm:-right-20 w-[280px] sm:w-[420px] md:w-[520px] pointer-events-none ${
+              className={`absolute -top-16 -right-20 sm:-right-28 sm:-top-20 w-[200px] sm:w-[400px] md:w-[500px] pointer-events-none ${
                 isMobile ? '' : 'transition-transform duration-75 ease-out'
               }`}
               style={{
-                transform: `translate3d(${exitEase * 240}px, ${-exitEase * 40}px, 0) scale(${1 + exitEase * 0.15})`,
+                transform: `translate3d(${exitEase * 260}px, ${-exitEase * 80}px, 0) scale(${1 + exitEase * 0.15})`,
                 willChange: 'transform',
                 filter: isMobile ? 'none' : 'drop-shadow(0 15px 25px rgba(255, 255, 255, 0.4))',
               }}
@@ -123,13 +123,13 @@ export const SectorHero: React.FC<SectorHeroProps> = ({
               />
             </div>
 
-            {/* Cloud 3: Lower cloud veil framing the bottom edge (below action buttons) */}
+            {/* Cloud 3: Fluffy lower-left cloud framing the bottom-left corner */}
             <div
-              className={`absolute -bottom-16 sm:-bottom-24 left-1/2 -translate-x-1/2 w-[340px] sm:w-[560px] md:w-[700px] pointer-events-none ${
+              className={`absolute -bottom-24 -left-20 sm:-left-28 sm:-bottom-28 w-[190px] sm:w-[380px] md:w-[460px] pointer-events-none ${
                 isMobile ? '' : 'transition-transform duration-75 ease-out'
               }`}
               style={{
-                transform: `translate3d(calc(-50% + ${exitEase * 30}px), ${exitEase * 120}px, 0) scale(${1 + exitEase * 0.12})`,
+                transform: `translate3d(${-exitEase * 220}px, ${exitEase * 140}px, 0) scale(${1 + exitEase * 0.12})`,
                 willChange: 'transform',
                 filter: isMobile ? 'none' : 'drop-shadow(0 20px 30px rgba(255, 255, 255, 0.35))',
               }}
@@ -142,21 +142,22 @@ export const SectorHero: React.FC<SectorHeroProps> = ({
               />
             </div>
 
-            {/* Cloud 4: Delicate subtle wisp near the altitude badge */}
+            {/* Cloud 4: Fluffy lower-right cloud framing the bottom-right corner */}
             <div
-              className={`absolute -top-18 left-1/4 w-[180px] sm:w-[280px] pointer-events-none ${
+              className={`absolute -bottom-24 -right-20 sm:-right-28 sm:-bottom-28 w-[200px] sm:w-[390px] md:w-[480px] pointer-events-none ${
                 isMobile ? '' : 'transition-transform duration-75 ease-out'
               }`}
               style={{
-                transform: `translate3d(${-exitEase * 120}px, ${-exitEase * 60}px, 0) scale(${1 + exitEase * 0.2})`,
+                transform: `translate3d(${exitEase * 220}px, ${exitEase * 140}px, 0) scale(${1 + exitEase * 0.12})`,
                 willChange: 'transform',
+                filter: isMobile ? 'none' : 'drop-shadow(0 20px 30px rgba(255, 255, 255, 0.35))',
               }}
             >
               <img
                 src="/textures/cloud.png"
                 alt=""
-                className="w-full h-auto opacity-75 select-none"
-                style={{ filter: 'brightness(1.08)' }}
+                className="w-full h-auto opacity-90 select-none"
+                style={{ filter: 'brightness(1.06) contrast(1.0)' }}
               />
             </div>
           </div>
