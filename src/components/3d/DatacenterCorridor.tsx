@@ -139,7 +139,7 @@ function RackWithDoor({
           </mesh>
 
           {/* SILICON SUBSTRATE CARD EMBEDDED ON 3D GLASS DOOR */}
-          {skillData && cardOpacity > 0.01 && (
+          {skillData && (
             <Html
               transform
               position={[isLeft ? 0.05 : -0.05, 0, 0.03]}
@@ -149,6 +149,7 @@ function RackWithDoor({
                 pointerEvents: cardOpacity > 0.1 ? 'auto' : 'none',
                 userSelect: 'none',
                 opacity: cardOpacity,
+                visibility: cardOpacity > 0.005 ? 'visible' : 'hidden',
                 transition: 'opacity 0.2s ease-out',
                 willChange: 'transform, opacity'
               }}
@@ -266,21 +267,6 @@ export const DatacenterCorridor: React.FC<DatacenterCorridorProps> = ({
   const facilityStageRef = useRef<THREE.Group>(null);
   const roomStageRef = useRef<THREE.Group>(null);
   const laptopStageRef = useRef<THREE.Group>(null);
-
-  useFrame(() => {
-    if (!isMobile) return;
-    const progress = scrollProgressRef ? scrollProgressRef.current : scrollProgress;
-
-    if (facilityStageRef.current) {
-      facilityStageRef.current.visible = progress >= 0.12 && progress < 0.77;
-    }
-    if (roomStageRef.current) {
-      roomStageRef.current.visible = progress >= 0.68;
-    }
-    if (laptopStageRef.current) {
-      laptopStageRef.current.visible = progress >= 0.76;
-    }
-  });
 
   // =========================================================================
   // 1. AIRLOCK DOUBLE GATE TIMING (Z = 12.5)

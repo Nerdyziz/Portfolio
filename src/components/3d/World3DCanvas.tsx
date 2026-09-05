@@ -12,7 +12,7 @@ interface World3DCanvasProps {
   onWarmed?: () => void;
 }
 
-// SceneWarmer: Pre-compiles all materials and shaders across ALL sectors before preloader completes
+// SceneWarmer: Pre-compiles all materials, textures, and shaders across ALL sectors before preloader completes
 function SceneWarmer({ onWarmed }: { onWarmed?: () => void }) {
   const { gl, scene, camera } = useThree();
   const warmedRef = useRef(false);
@@ -26,29 +26,51 @@ function SceneWarmer({ onWarmed }: { onWarmed?: () => void }) {
 
       // Once all GLTF models (racks, motherboard, room, plane) are mounted in the scene graph
       if (meshCount > 15) {
-        // 1. Compile stratosphere & clouds view
+        // 1. Compile stratosphere & clouds overview
         gl.compile(scene, camera);
 
-        // 2. Pre-compile interior datacenter & server rack shaders
+        // 2. Pre-compile approach outside airlock gate
+        const gateCam = camera.clone() as THREE.PerspectiveCamera;
+        gateCam.position.set(0, 1.35, 16);
+        gateCam.lookAt(0, 1.4, 12.5);
+        gateCam.updateMatrixWorld();
+        gl.compile(scene, gateCam);
+
+        // 3. Pre-compile interior datacenter & server rack corridor shaders
         const interiorCam = camera.clone() as THREE.PerspectiveCamera;
         interiorCam.position.set(0, 1.35, 6);
         interiorCam.lookAt(0, 1.35, -20);
         interiorCam.updateMatrixWorld();
         gl.compile(scene, interiorCam);
 
-        // 3. Pre-compile Rack 4 Motherboard & Red Core chip shaders
+        // 4. Pre-compile Rack 4 Motherboard & Red Core chip shaders
         const chipCam = camera.clone() as THREE.PerspectiveCamera;
-        chipCam.position.set(-1.8, 1.35, -9);
-        chipCam.lookAt(-2.4, 1.25, -9);
+        chipCam.position.set(-1.8, 1.46, -9);
+        chipCam.lookAt(-2.4, 1.34, -9);
         chipCam.updateMatrixWorld();
         gl.compile(scene, chipCam);
 
-        // 4. Pre-compile Lounge Room & Runway Experience shaders
+        // 5. Pre-compile Lounge Room (room2.glb) and glass doors shaders
         const roomCam = camera.clone() as THREE.PerspectiveCamera;
         roomCam.position.set(0, 1.35, -30);
         roomCam.lookAt(0, 1.35, -33.5);
         roomCam.updateMatrixWorld();
         gl.compile(scene, roomCam);
+
+        // 6. Pre-compile Laptop Table, Terminal Screen & Airplane (plane.glb) runway shaders
+        const laptopCam = camera.clone() as THREE.PerspectiveCamera;
+        laptopCam.position.set(-0.048, 0.88, -32.5);
+        laptopCam.lookAt(-0.048, 0.86, -33.5);
+        laptopCam.updateMatrixWorld();
+        gl.compile(scene, laptopCam);
+
+        // Force driver texture bindings and shader cache pipeline generation
+        gl.render(scene, camera);
+        gl.render(scene, gateCam);
+        gl.render(scene, interiorCam);
+        gl.render(scene, chipCam);
+        gl.render(scene, roomCam);
+        gl.render(scene, laptopCam);
 
         warmedRef.current = true;
         onWarmed?.();
