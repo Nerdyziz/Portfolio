@@ -1,7 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
-    "./index.html",
+    "./app/**/*.{js,ts,jsx,tsx}",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   darkMode: "class",
@@ -21,10 +21,10 @@ export default {
         "border-gold": "rgba(245, 166, 35, 0.4)"
       },
       fontFamily: {
-        "display": ["'Playfair Display'", "serif"],
-        "sans": ["Inter", "sans-serif"],
-        "mono": ["'JetBrains Mono'", "monospace"],
-        "label": ["'Space Mono'", "monospace"],
+        "display": ["var(--font-display)", "'Playfair Display'", "serif"],
+        "sans": ["var(--font-sans)", "Inter", "sans-serif"],
+        "mono": ["var(--font-mono)", "'JetBrains Mono'", "monospace"],
+        "label": ["var(--font-label)", "'Space Mono'", "monospace"],
       },
       boxShadow: {
         "glass": "0 20px 40px -15px rgba(0, 0, 0, 0.04), 0 0 15px rgba(245, 166, 35, 0.08)",

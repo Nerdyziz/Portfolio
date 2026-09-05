@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { ArrowDown, ShieldCheck, Cpu, Network } from 'lucide-react';
 import { soundEngine } from '../utils/audio';

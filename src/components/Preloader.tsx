@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import { useProgress } from '@react-three/drei';
 import { ShieldCheck, Compass, Sparkles } from 'lucide-react';

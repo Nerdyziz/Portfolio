@@ -1,13 +1,20 @@
+'use client';
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { World3DCanvas } from './3d/World3DCanvas';
 import { SectorHero } from './SectorHero';
 import { SectorDatacenter } from './SectorDatacenter';
 import { SectorNeuralCore } from './SectorNeuralCore';
 import { TouchJoystick } from './TouchJoystick';
 import { Project } from '../types';
 import { soundEngine } from '../utils/audio';
+
+const World3DCanvas = dynamic(
+  () => import('./3d/World3DCanvas').then((mod) => mod.World3DCanvas),
+  { ssr: false }
+);
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -298,18 +305,21 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
       }
 
       // Smooth acceleration and deceleration (lerp towards target velocity)
-      currentVelocityRef.current += (targetVelocityRef.current - currentVelocityRef.current) * 0.12;
+      currentVelocityRef.current += (targetVelocityRef.current - currentVelocityRef.current) * 0.16;
 
       if (Math.abs(currentVelocityRef.current) > 0.000005) {
         isJoystickFlyingRef.current = true;
-        let v = currentVelocityRef.current;
+        
+        // Normalize flight velocity to 60 FPS delta time for consistent speed across 60Hz, 90Hz & 120Hz screens
+        const deltaRatio = Math.min(gsap.ticker.deltaRatio(60), 2.5);
+        let v = currentVelocityRef.current * deltaRatio;
 
         // Clear cooldown once we've traveled away from the station we just left
         if (lastUnlockedStationIdRef.current) {
           const unlockedStation = SHOWCASE_STATIONS.find(
             (s) => s.id === lastUnlockedStationIdRef.current
           );
-          if (unlockedStation && Math.abs(currentP - unlockedStation.progress) > 0.022) {
+          if (unlockedStation && Math.abs(currentP - unlockedStation.progress) > 0.025) {
             lastUnlockedStationIdRef.current = null;
           }
         }
@@ -348,8 +358,8 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
 
             const dist = station.progress - currentP;
             // Magnetic cushioning as deck gate opens (smooth slow-down, no brick wall!)
-            if (dist > 0 && dist < 0.016) {
-              const cushion = Math.max(0.30, dist / 0.016);
+            if (dist > 0 && dist < 0.022) {
+              const cushion = Math.max(0.35, dist / 0.022);
               v *= cushion;
             }
 
@@ -376,8 +386,8 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
             if (lastUnlockedStationIdRef.current === station.id) continue;
 
             const dist = currentP - station.progress;
-            if (dist > 0 && dist < 0.016) {
-              const cushion = Math.max(0.30, dist / 0.016);
+            if (dist > 0 && dist < 0.022) {
+              const cushion = Math.max(0.35, dist / 0.022);
               v *= cushion;
             }
 
@@ -402,14 +412,6 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
 
         const nextProgress = Math.min(1, Math.max(0, currentP + v));
         scheduleStateUpdate(nextProgress);
-
-        // Throttle DOM window.scrollTo during flight (every 250ms) to eliminate forced reflows
-        if (now - lastDomScrollTimeRef.current > 250) {
-          lastDomScrollTimeRef.current = now;
-          if (maxScrollRef.current > 0) {
-            window.scrollTo(0, nextProgress * maxScrollRef.current);
-          }
-        }
       } else if (isJoystickFlyingRef.current) {
         // Flight came to rest: sync DOM scroll position once cleanly
         isJoystickFlyingRef.current = false;
@@ -427,10 +429,18 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
     // If stick is returned to near-center, mark released
     if (Math.abs(intensity) < 0.1) {
       releasedSinceLockRef.current = true;
+      targetVelocityRef.current = 0;
+      return;
     }
 
-    // Controlled luxury cruising speed: slower, cinematic pace on mobile screens
-    targetVelocityRef.current = intensity * 0.0008;
+    // Dynamic non-linear speed curve:
+    // Gentle push (< 0.4): fine precision navigation (~0.0015)
+    // Firm push (> 0.7): high-speed rapid traversal (~0.0050 - 0.0055)
+    const sign = Math.sign(intensity);
+    const absVal = Math.abs(intensity);
+    const scaledSpeed = (absVal < 0.4 ? absVal * 0.0028 : 0.00112 + Math.pow((absVal - 0.4) / 0.6, 1.4) * 0.0042) * sign;
+
+    targetVelocityRef.current = scaledSpeed;
   }, []);
 
 

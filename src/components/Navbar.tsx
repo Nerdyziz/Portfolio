@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState } from 'react';
 import { Volume2, VolumeX } from 'lucide-react';
 import { soundEngine } from '../utils/audio';

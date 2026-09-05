@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useRef, Suspense } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
@@ -323,9 +325,14 @@ function CameraRig({
     const aspectFactor = aspect < 1.25 ? THREE.MathUtils.clamp(1.18 / Math.max(0.42, aspect), 1.0, 1.55) : 1.0;
     const effectiveFov = targetFov * aspectFactor;
 
+    // Smooth delta-time damping (independent of 60Hz, 90Hz, 120Hz refresh rates)
+    const delta = state.clock.getDelta();
+    const damp = 1 - Math.exp(-14 * Math.min(delta, 0.1));
+    const clampedDamp = THREE.MathUtils.clamp(damp, 0.06, 0.35);
+
     // Smooth FOV interpolation for wide-angle room perspective
     if (Math.abs(currentFov.current - effectiveFov) > 0.05) {
-      currentFov.current = THREE.MathUtils.lerp(currentFov.current, effectiveFov, 0.08);
+      currentFov.current = THREE.MathUtils.lerp(currentFov.current, effectiveFov, clampedDamp);
       const persCam = state.camera as THREE.PerspectiveCamera;
       if (persCam.isPerspectiveCamera) {
         persCam.fov = currentFov.current;
@@ -334,8 +341,8 @@ function CameraRig({
     }
 
     // Silky smooth cinematic camera damping
-    currentPos.current.lerp(targetPos, 0.08);
-    currentLookAt.current.lerp(targetLookAt, 0.08);
+    currentPos.current.lerp(targetPos, clampedDamp);
+    currentLookAt.current.lerp(targetLookAt, clampedDamp);
 
     state.camera.position.copy(currentPos.current);
     state.camera.lookAt(currentLookAt.current);
@@ -370,7 +377,7 @@ export const World3DCanvas: React.FC<World3DCanvasProps> = ({
   );
 
   const stableDpr = isMobile
-    ? Math.min(typeof window !== 'undefined' ? window.devicePixelRatio : 1, 1.25)
+    ? Math.min(typeof window !== 'undefined' ? window.devicePixelRatio : 1, 1.15)
     : Math.min(typeof window !== 'undefined' ? window.devicePixelRatio : 1, 1.75);
 
   return (

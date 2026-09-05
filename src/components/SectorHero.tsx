@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useEffect, useRef } from 'react';
 import { ArrowDown, FileText } from 'lucide-react';
 import gsap from 'gsap';
