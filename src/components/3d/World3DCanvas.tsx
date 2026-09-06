@@ -100,7 +100,7 @@ function CameraRig({
   const currentLookAt = useRef(new THREE.Vector3(0, 30, 5));
   const currentFov = useRef(48);
 
-  useFrame((state) => {
+  useFrame((state, delta) => {
     // Subtle Mouse Parallax
     const mouseX = state.pointer.x * 0.16;
     const mouseY = state.pointer.y * 0.12;
@@ -327,9 +327,8 @@ function CameraRig({
     const effectiveFov = targetFov * aspectFactor;
 
     // Smooth delta-time damping (independent of 60Hz, 90Hz, 120Hz refresh rates)
-    const delta = state.clock.getDelta();
-    const damp = 1 - Math.exp(-14 * Math.min(delta, 0.1));
-    const clampedDamp = THREE.MathUtils.clamp(damp, 0.06, 0.35);
+    const damp = 1 - Math.exp(-22 * Math.min(delta, 0.1));
+    const clampedDamp = THREE.MathUtils.clamp(damp, 0.15, 0.75);
 
     // Smooth FOV interpolation for wide-angle room perspective
     if (Math.abs(currentFov.current - effectiveFov) > 0.05) {

@@ -266,11 +266,19 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
   const currentStationIdRef = useRef<string | null>(null);
   const dwellStartTimeRef = useRef<number>(0);
   const isDwellingRef = useRef<boolean>(false);
+  const lastFlightTickTimeRef = useRef<number>(performance.now());
 
-  // Smooth cinematic flight loop with intelligent magnetic card reading detents
+  // Smooth cinematic flight loop with deterministic wall-clock delta-time physics
   useEffect(() => {
+    lastFlightTickTimeRef.current = performance.now();
+
     const updateFlight = () => {
       const now = performance.now();
+      const dt = Math.min((now - lastFlightTickTimeRef.current) / 1000, 0.05);
+      lastFlightTickTimeRef.current = now;
+
+      if (dt <= 0) return;
+
       const currentP = scrollProgressRef.current;
 
       // If currently transitioning via cloud portal, pause flight until arrival in Section 1
@@ -285,8 +293,8 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
         const dwellDuration = now - dwellStartTimeRef.current;
         const absThrottle = Math.abs(targetVelocityRef.current);
 
-        // Break out if user holds throttle past comfortable reading dwell (650ms) or pushes firmly (> 0.0030)
-        if (absThrottle > 0.0003 && (dwellDuration > 650 || absThrottle > 0.0030)) {
+        // Break out if user holds throttle past comfortable reading dwell (380ms) or pushes firmly (> 0.16 progress/sec)
+        if (absThrottle > 0.01 && (dwellDuration > 380 || absThrottle > 0.16)) {
           isDwellingRef.current = false;
           lastStationIdRef.current = currentStationIdRef.current;
           currentStationIdRef.current = null;
@@ -301,15 +309,15 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
         }
       }
 
-      // Smooth acceleration and deceleration (lerp towards target velocity)
-      currentVelocityRef.current += (targetVelocityRef.current - currentVelocityRef.current) * 0.16;
+      // Frame-rate independent acceleration lerp towards target velocity (progress/second)
+      const accelDamp = 1 - Math.exp(-18 * dt);
+      currentVelocityRef.current += (targetVelocityRef.current - currentVelocityRef.current) * accelDamp;
 
-      if (Math.abs(currentVelocityRef.current) > 0.000005) {
+      if (Math.abs(currentVelocityRef.current) > 0.0001) {
         isJoystickFlyingRef.current = true;
 
-        // Normalize flight velocity to 60 FPS delta time for consistent speed across 60Hz, 90Hz & 120Hz screens
-        const deltaRatio = Math.min(gsap.ticker.deltaRatio(60), 2.5);
-        let v = currentVelocityRef.current * deltaRatio;
+        // True physical progress displacement = velocity (progress/sec) * delta_time (sec)
+        let v = currentVelocityRef.current * dt;
 
         // Forward motion: check continuous flight loop re-entry into Section 1 Stratosphere
         if (v > 0 && currentP + v >= 0.990) {
@@ -364,7 +372,7 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
 
           if (isApproaching && dist < 0.030) {
             // Progressive deceleration cushion so the card smoothly comes into clear focus
-            const cushion = Math.max(0.35, 0.35 + 0.65 * (dist / 0.030));
+            const cushion = Math.max(0.40, 0.40 + 0.60 * (dist / 0.030));
             v *= cushion;
 
             // Settle squarely on the card sweet spot
@@ -413,18 +421,18 @@ export const ScrollytellingContainer: React.FC<ScrollytellingContainerProps> = (
       return;
     }
 
-    // Balanced non-linear speed curve:
-    // Gentle push (< 0.35): fine precision navigation (~0.0008 - 0.0018)
-    // Medium push (0.35 - 0.70): comfortable readable traversal (~0.0025 - 0.0038)
-    // Full push (> 0.70): swift rapid transit (~0.0048 - 0.0052)
+    // Calibrated progress-per-second velocity curve:
+    // Gentle push (< 0.35): precision navigation (~0.04 - 0.06 progress/sec)
+    // Medium push (0.35 - 0.70): comfortable cruising (~0.12 - 0.18 progress/sec)
+    // Full push (> 0.70): rapid transit (~0.25 - 0.28 progress/sec, ~3.5s full lap)
     const sign = Math.sign(intensity);
     const absVal = Math.abs(intensity);
-    const scaledSpeed =
+    const speedPerSec =
       (absVal < 0.35
-        ? absVal * 0.0025
-        : 0.00087 + Math.pow((absVal - 0.35) / 0.65, 1.3) * 0.0042) * sign;
+        ? absVal * 0.15
+        : 0.0525 + Math.pow((absVal - 0.35) / 0.65, 1.25) * 0.23) * sign;
 
-    targetVelocityRef.current = scaledSpeed;
+    targetVelocityRef.current = speedPerSec;
   }, []);
 
 
